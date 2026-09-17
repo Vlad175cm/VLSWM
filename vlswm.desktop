@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=vlswm
+Comment=A minimal fast Wayland compositor
+Exec=/usr/bin/vlswm
+Type=Application
+DesktopNames=vlswm
+Keywords=tiling;wayland;compositor;

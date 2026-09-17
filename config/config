@@ -1,0 +1,45 @@
+# vlswm configuration
+
+[wm]
+gaps = true
+gap_size = 8
+border_enabled = false
+border_width = 2
+corner_radius = 12
+
+[windows]
+opacity_enabled = true
+opacity = 0.75
+
+[animations]
+enabled = true
+duration = 300
+curve = "ease-out"
+
+[wallpaper]
+path = "~/.config/ml4w/wallpapers/911.png"
+
+[launcher]
+terminal = "kitty"
+
+[keybinds]
+terminal = "SUPER+ENTER"
+launcher = "SUPER+D"
+close = "SUPER+Q"
+fullscreen = "SUPER+F"
+floating = "SUPER+SPACE"
+reload = "SUPER+R"
+exit = "SUPER+ESC"
+kbd_brightness_up = "brightnessctl --device='smc::kbd_backlight' set +10%"
+kbd_brightness_down = "brightnessctl --device='smc::kbd_backlight' set 10%-"
+
+[keybinds.workspaces]
+"1" = "SUPER+1"
+"2" = "SUPER+2"
+"3" = "SUPER+3"
+"4" = "SUPER+4"
+"5" = "SUPER+5"
+"6" = "SUPER+6"
+"7" = "SUPER+7"
+"8" = "SUPER+8"
+"9" = "SUPER+9"
