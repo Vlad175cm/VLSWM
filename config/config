@@ -1,45 +1,50 @@
 # vlswm configuration
+# Key combos: MODIFIERS+KEY, modifiers are SUPER, SHIFT, CTRL, ALT.
+# A keybind may list several combos separated by commas.
+# Any name in [commands] can be bound to a key in [keybinds].
 
-[wm]
-gaps = true
-gap_size = 8
-border_enabled = false
-border_width = 2
-corner_radius = 12
+[keybinds]
+launcher = "SUPER+D"
+close = "SUPER+Q"
+reload = "SUPER+R"
+exit = "SUPER+ESC"
+theme = "SUPER+T"
+focus_prev = "SUPER+LEFT"
+focus_next = "SUPER+RIGHT"
+zen = "SUPER+Z"
+brightness_up = "XF86MonBrightnessUp, SUPER+F2"
+brightness_down = "XF86MonBrightnessDown, SUPER+F1"
+kbd_brightness_up = "XF86KbdBrightnessUp"
+kbd_brightness_down = "XF86KbdBrightnessDown"
+volume_up = "XF86AudioRaiseVolume, SUPER+F4"
+volume_down = "XF86AudioLowerVolume, SUPER+F3"
+volume_mute = "XF86AudioMute"
 
-[windows]
-opacity_enabled = true
-opacity = 0.75
+[commands]
+zen = "zen-browser"
+brightness_up = "brightnessctl -q set 5%+"
+brightness_down = "brightnessctl -q set 5%-"
+kbd_brightness_up = "brightnessctl --device='smc::kbd_backlight' set +10%"
+kbd_brightness_down = "brightnessctl --device='smc::kbd_backlight' set 10%-"
+volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
+volume_down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+
+[launcher]
+terminal = "ghostty"
+font = "JetBrainsMono Nerd Font 16"
+
+[theme]
+ghostty = "~/.config/ghostty"
 
 [animations]
-enabled = true
 duration = 300
 curve = "ease-out"
 
-[wallpaper]
-path = "~/.config/ml4w/wallpapers/911.png"
+[input]
+repeat_delay = 200
+repeat_rate = 40
 
-[launcher]
-terminal = "kitty"
-
-[keybinds]
-terminal = "SUPER+ENTER"
-launcher = "SUPER+D"
-close = "SUPER+Q"
-fullscreen = "SUPER+F"
-floating = "SUPER+SPACE"
-reload = "SUPER+R"
-exit = "SUPER+ESC"
-kbd_brightness_up = "brightnessctl --device='smc::kbd_backlight' set +10%"
-kbd_brightness_down = "brightnessctl --device='smc::kbd_backlight' set 10%-"
-
-[keybinds.workspaces]
-"1" = "SUPER+1"
-"2" = "SUPER+2"
-"3" = "SUPER+3"
-"4" = "SUPER+4"
-"5" = "SUPER+5"
-"6" = "SUPER+6"
-"7" = "SUPER+7"
-"8" = "SUPER+8"
-"9" = "SUPER+9"
+[xwayland]
+satellite = "xwayland-satellite"
+display = ":1"

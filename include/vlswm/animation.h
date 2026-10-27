@@ -1,8 +1,6 @@
-// vlswm — animation engine: easing, scalar fades, geometry transitions.
 #pragma once
 
 #include <cstdint>
-#include <string>
 
 enum class Easing {
     Linear,
@@ -13,13 +11,10 @@ enum class Easing {
 
 Easing easing_from_string(const char *name, Easing def = Easing::EaseOut);
 
-// Returns nanoseconds from CLOCK_MONOTONIC.
 uint64_t anim_now_ns();
 
-// Maps t in [0, 1] → value in [0, 1] using the given easing curve.
 double anim_ease(Easing e, double t);
 
-// Smoothly interpolated geometry transition (x, y, w, h).
 struct GeometryAnim {
     bool active = false;
     uint64_t start = 0;
@@ -32,11 +27,9 @@ struct GeometryAnim {
                int cx, int cy, int cw, int ch,
                int nx, int ny, int nw, int nh);
 
-    // Returns true when the transition is complete; writes current values.
     bool step(uint64_t now, int *x, int *y, int *w, int *h);
 };
 
-// Smooth scalar fade (for opacity).
 struct FadeAnim {
     bool active = false;
     uint64_t start = 0;

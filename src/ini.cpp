@@ -57,6 +57,14 @@ std::optional<IniConfig> IniConfig::load(const std::string &path) {
     return cfg;
 }
 
+IniConfig IniConfig::load_or_empty(const std::string &path) {
+    auto cfg = load(path);
+    if (cfg) return *cfg;
+    IniConfig empty;
+    empty.path_ = path;
+    return empty;
+}
+
 std::string IniConfig::get(const std::string &section, const std::string &key,
                            const std::string &def) const {
     auto it = values.find(section + "." + key);

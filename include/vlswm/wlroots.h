@@ -1,9 +1,9 @@
-// vlswm — vendored wlroots C headers wrapped in C++ linkage.
-//
-// The Arch wlroots0.20 package ships C headers without `extern "C"` guards,
-// which breaks C++ consumers (linker resolves mangled names against the C
-// symbols exported by libwlroots). Wrapping every include in a single
-// `extern "C"` block gives the whole transitive closure C linkage.
+
+
+
+
+
+
 #pragma once
 
 extern "C" {
@@ -20,7 +20,7 @@ extern "C" {
 #include <wlr/types/wlr_data_control_v1.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
-// wlr_layer_shell_v1.h uses `namespace` as a field name (C++ keyword).
+
 #define namespace wlr_layer_namespace
 #include <wlr/types/wlr_layer_shell_v1.h>
 #undef namespace
@@ -35,6 +35,7 @@ extern "C" {
 #include <wlr/types/wlr_xdg_activation_v1.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_presentation_time.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_primary_selection_v1.h>

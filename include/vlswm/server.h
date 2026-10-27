@@ -1,16 +1,20 @@
-// vlswm — minimal, fast Wayland compositor.
-// v0.1: backend + renderer + allocator + scene-graph + output + seat + xdg windows.
 #pragma once
 
 #include "vlswm/wlroots.h"
-#include "vlswm/xwayland.h"
 #include "vlswm/animation.h"
+#include "vlswm/ini.h"
 
-#include <list>
+#include <xkbcommon/xkbcommon.h>
+
+#include <sys/types.h>
+
+#include <map>
+#include <memory>
 #include <string>
+#include <vector>
 
-struct IniConfig;
 struct View;
+struct Launcher;
 
 struct Output {
     struct wlr_output *wlr_output;
@@ -18,11 +22,59 @@ struct Output {
     struct wl_listener frame;
     struct wl_listener request_state;
     struct wl_listener destroy;
-    struct wlr_scene_node *background = nullptr;  // per-output wallpaper node
+};
+
+struct Settings {
+    uint64_t duration_ns = 300ULL * 1000000ULL;
+    Easing easing = Easing::EaseOut;
+    int repeat_delay = 200;
+    int repeat_rate = 40;
+    std::string terminal = "ghostty";
+    std::string font = "JetBrainsMono Nerd Font 16";
+    std::string satellite = "xwayland-satellite";
+    std::string satellite_display = ":1";
+    std::string ghostty_dir;
+};
+
+enum class BindAction {
+    Close,
+    Exit,
+    Reload,
+    FocusNext,
+    FocusPrev,
+    Theme,
+    Launcher,
+    Spawn,
+};
+
+struct Binding {
+    uint32_t mods = 0;
+    xkb_keysym_t sym = XKB_KEY_NoSymbol;
+    BindAction action = BindAction::Spawn;
+    std::string cmd;
+    bool repeat = false;
+};
+
+enum class RepeatKind {
+    None,
+    Binding,
+    LauncherKey,
+};
+
+struct Repeat {
+    RepeatKind kind = RepeatKind::None;
+    int binding = -1;
+    xkb_keysym_t sym = XKB_KEY_NoSymbol;
+    std::string utf8;
+    uint32_t keycode = 0;
 };
 
 struct Server {
-    struct IniConfig *config = nullptr;  // loaded INI config (may be null = defaults)
+    std::unique_ptr<IniConfig> config;
+    Settings settings;
+    std::vector<Binding> bindings;
+    std::map<std::string, std::string> theme_base;
+    bool theme_white = false;
 
     struct wl_display *wl_display = nullptr;
     struct wlr_backend *backend = nullptr;
@@ -33,45 +85,42 @@ struct Server {
     struct wlr_xdg_shell *xdg_shell = nullptr;
     struct wlr_layer_shell_v1 *layer_shell = nullptr;
     struct wlr_linux_dmabuf_v1 *linux_dmabuf = nullptr;
-
-    struct wlr_xwayland *xwayland = nullptr;
     struct wlr_xdg_activation_v1 *xdg_activation = nullptr;
+    struct wlr_xdg_decoration_manager_v1 *decoration_mgr = nullptr;
 
     struct wlr_scene *scene = nullptr;
-    struct wlr_scene_tree *scene_shell = nullptr;   // toplevel windows
     struct wlr_scene_tree *scene_background = nullptr;
-    struct wlr_scene_tree *scene_layers = nullptr;  // layer-shell surfaces (fuzzel, etc.)
+    struct wlr_scene_tree *scene_apps = nullptr;
+    struct wlr_scene_tree *scene_overlay = nullptr;
+    struct wlr_scene_tree *scene_layers = nullptr;
+    struct wlr_scene_rect *background = nullptr;
 
     struct wlr_seat *seat = nullptr;
     struct wlr_cursor *cursor = nullptr;
     struct wlr_xcursor_manager *cursor_mgr = nullptr;
-
     struct wlr_output_layout *output_layout = nullptr;
-
-    std::list<View *> views;
-    std::list<Output *> outputs;
-
-    // CPU copy of the wallpaper raster (BGRA little-endian ARGB8888, premultiplied),
-    // used for rounded-corner masks: cut pixels are painted with the wallpaper
-    // color that sits underneath the window corner.
-    unsigned char *wp_pixels = nullptr;
-    int wp_w = 0, wp_h = 0;
-    int wp_rev = 0;  // bumped on every (re)load so corner masks refresh
 
     struct wlr_keyboard *keyboard = nullptr;
     struct wlr_input_device *pointer_device = nullptr;
 
-    int current_workspace = 1;
+    std::vector<View *> stack;
+    std::vector<Output *> outputs;
+    Launcher *launcher = nullptr;
 
-    // Suppressed while switching workspaces so windows jump instead of gliding.
-    bool suppress_anims = false;
+    pid_t base_pid = 0;
+    pid_t satellite_pid = 0;
+    bool terminal_wanted = true;
+    struct wl_event_source *respawn_timer = nullptr;
+
+    Repeat repeat;
+    struct wl_event_source *repeat_timer = nullptr;
+    std::vector<pid_t> children;
 
     struct wl_listener new_output;
     struct wl_listener new_input;
     struct wl_listener new_xdg_surface;
     struct wl_listener new_layer_surface;
-    struct wl_listener xwayland_ready;
-    struct wl_listener xwayland_new_surface;
+    struct wl_listener new_decoration;
     struct wl_listener cursor_motion;
     struct wl_listener cursor_motion_absolute;
     struct wl_listener cursor_button;
@@ -82,36 +131,41 @@ struct Server {
     struct wl_listener request_start_drag;
     struct wl_listener request_activate;
 
-    bool init(IniConfig *config);
+    bool init(std::unique_ptr<IniConfig> cfg);
     void run();
     void finish();
+    void reload_config();
 
+    void load_settings();
+    void load_bindings();
+    void check_config();
+    int find_binding(xkb_keysym_t sym, uint32_t mods) const;
+    void run_action(int idx);
+    void start_repeat(const Repeat &r);
+    void stop_repeat(uint32_t keycode);
+    void spawn(const std::string &cmd);
+    void spawn_argv(const std::vector<std::string> &argv);
+    void start_terminal();
+    void terminal_gone();
+    void start_satellite();
+    void ghostty_setup_theme();
+
+    View *top_view();
     View *focused_view();
     void focus_view(View *view, struct wlr_surface *surface);
-
-    void arrange();               // recompute tiled layout
-    void move_focus(int dx);      // +1 / -1 cycle tiled focus
-    void swap_focus(int dx);      // SUPER+ALT+arrows: swap focused with neighbor
-    void toggle_floating();       // SUPER+SPACE
-    void toggle_fullscreen();     // SUPER+F
-    void move_to_master();        // promote focused to master / cycle stack
-
-    void switch_workspace(int id);      // jump/create a workspace
-    void move_focused_to_workspace(int id); // move focused window to workspace
-    void workspace_refresh();           // re-render all views on current workspace
-    
-    void reload_config();         // SUPER+R hot-reload config without restart
-
-    // --- animations ---
-    void animate(uint64_t now);   // advance all in-flight animations (per frame)
-    void close_view(View *view);  // animated (or instant) window close
-
-    bool animations_enabled() const;
-    uint64_t animation_duration_ns() const;
-    Easing easing() const;
+    void update_visibility();
+    void focus_top();
+    void cycle_next();
+    void cycle_prev();
+    void close_top();
+    void close_view(View *view);
+    void set_theme(bool white);
+    void configure_all();
+    void request_frame();
+    void animate(uint64_t now);
+    bool animations_running() const;
 };
 
 Output *create_output(Server *server, struct wlr_output *wlr_output);
 View *desktop_view_at(Server *server, double lx, double ly,
                       struct wlr_surface **surface, double *sx, double *sy);
-struct wlr_scene_tree *scene_tree_for_surface(struct wlr_surface *surface);

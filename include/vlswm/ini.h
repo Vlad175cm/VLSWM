@@ -1,4 +1,4 @@
-// vlswm — trivial INI config loader.
+
 #pragma once
 
 #include <map>
@@ -6,9 +6,10 @@
 #include <string>
 
 struct IniConfig {
-    std::map<std::string, std::string> values; // "section.key" -> value
+    std::map<std::string, std::string> values;
 
     static std::optional<IniConfig> load(const std::string &path);
+    static IniConfig load_or_empty(const std::string &path);
 
     std::string get(const std::string &section, const std::string &key,
                     const std::string &def = "") const;

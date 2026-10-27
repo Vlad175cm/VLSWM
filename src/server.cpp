@@ -1,45 +1,38 @@
-
+#include "vlswm/wlroots.h"
 #include "vlswm/server.h"
 #include "vlswm/view.h"
-#include "vlswm/ini.h"
-#include "vlswm/wallpaper.h"
-#include "vlswm/corners.h"
+#include "vlswm/launcher.h"
+#include "vlswm/theme.h"
 
 #include <xkbcommon/xkbcommon.h>
-#include <unistd.h>
 #include <linux/input.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_xdg_activation_v1.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include <algorithm>
+#include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <cerrno>
-#include <memory>
+#include <sstream>
 #include <string>
+#include <vector>
 
 extern char **environ;
 
-Output *create_output(Server *server, struct wlr_output *wlr_output);
-
-
-
-
+static const uint32_t MODS_MASK = WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT |
+                                  WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT;
 
 View *desktop_view_at(Server *server, double lx, double ly,
                       struct wlr_surface **surface, double *sx, double *sy) {
-    struct wlr_scene_node *node = wlr_scene_node_at(&server->scene_shell->node, lx, ly, sx, sy);
-    if (!node || node->type != WLR_SCENE_NODE_BUFFER) {
-        return nullptr;
-    }
+    struct wlr_scene_node *node = wlr_scene_node_at(&server->scene->tree.node, lx, ly, sx, sy);
+    if (!node || node->type != WLR_SCENE_NODE_BUFFER) return nullptr;
     struct wlr_scene_buffer *scene_buffer = wlr_scene_buffer_from_node(node);
-    struct wlr_scene_surface *scene_surface =
-        wlr_scene_surface_try_from_buffer(scene_buffer);
-    if (!scene_surface) {
-        return nullptr;
-    }
+    struct wlr_scene_surface *scene_surface = wlr_scene_surface_try_from_buffer(scene_buffer);
+    if (!scene_surface) return nullptr;
     *surface = scene_surface->surface;
-
 
     struct wlr_scene_tree *tree = node->parent;
     while (tree && tree->node.data == nullptr) {
@@ -48,9 +41,61 @@ View *desktop_view_at(Server *server, double lx, double ly,
     return tree ? (View *)tree->node.data : nullptr;
 }
 
+static std::string trim(const std::string &s) {
+    size_t b = s.find_first_not_of(" \t");
+    if (b == std::string::npos) return "";
+    size_t e = s.find_last_not_of(" \t");
+    return s.substr(b, e - b + 1);
+}
 
+static std::string lower(std::string s) {
+    for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+    return s;
+}
 
+static std::string expand_home(const std::string &path) {
+    if (path.size() >= 2 && path[0] == '~' && path[1] == '/') {
+        const char *home = std::getenv("HOME");
+        return std::string(home ? home : "") + path.substr(1);
+    }
+    return path;
+}
 
+static xkb_keysym_t parse_key(const std::string &name) {
+    std::string n = lower(name);
+    if (n == "enter" || n == "return") return XKB_KEY_Return;
+    if (n == "esc" || n == "escape") return XKB_KEY_Escape;
+    if (n == "space") return XKB_KEY_space;
+    if (n == "tab") return XKB_KEY_Tab;
+    return xkb_keysym_from_name(name.c_str(), XKB_KEYSYM_CASE_INSENSITIVE);
+}
+
+static bool parse_combo(const std::string &text, uint32_t *mods, xkb_keysym_t *sym) {
+    *mods = 0;
+    std::vector<std::string> parts;
+    size_t start = 0;
+    std::string rest = trim(text);
+    while (true) {
+        size_t p = rest.find('+', start);
+        if (p == std::string::npos) {
+            parts.push_back(trim(rest.substr(start)));
+            break;
+        }
+        parts.push_back(trim(rest.substr(start, p - start)));
+        start = p + 1;
+    }
+    if (parts.empty()) return false;
+    for (size_t i = 0; i + 1 < parts.size(); i++) {
+        std::string m = lower(parts[i]);
+        if (m == "super" || m == "logo" || m == "mod4") *mods |= WLR_MODIFIER_LOGO;
+        else if (m == "shift") *mods |= WLR_MODIFIER_SHIFT;
+        else if (m == "ctrl" || m == "control") *mods |= WLR_MODIFIER_CTRL;
+        else if (m == "alt" || m == "mod1") *mods |= WLR_MODIFIER_ALT;
+        else return false;
+    }
+    *sym = parse_key(parts.back());
+    return *sym != XKB_KEY_NoSymbol;
+}
 
 struct Keyboard {
     Server *server;
@@ -58,202 +103,160 @@ struct Keyboard {
     struct wl_listener modifiers;
     struct wl_listener key;
     struct wl_listener destroy;
-
-
     bool swallowed = false;
     uint32_t swallowed_keycode = 0;
 };
 
-static void spawn_cmd(const char *cmd) {
-    pid_t pid = fork();
-    if (pid == 0) {
-        setsid();
-        execlp("/bin/sh", "/bin/sh", "-c", cmd, (char *)nullptr);
-        wlr_log(WLR_ERROR, "failed to exec '%s': %s", cmd, strerror(errno));
-        _exit(1);
-    } else if (pid < 0) {
-        wlr_log(WLR_ERROR, "failed to fork '%s': %s", cmd, strerror(errno));
+void Server::spawn_argv(const std::vector<std::string> &argv) {
+    posix_spawnattr_t attr;
+    posix_spawnattr_init(&attr);
+    posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSID);
+    std::vector<char *> args;
+    for (const auto &a : argv) args.push_back((char *)a.c_str());
+    args.push_back(nullptr);
+    pid_t pid = 0;
+    int r = posix_spawnp(&pid, args[0], nullptr, &attr, args.data(), environ);
+    posix_spawnattr_destroy(&attr);
+    if (r != 0) {
+        wlr_log(WLR_ERROR, "cannot run '%s': %s", args[0], strerror(r));
+        return;
     }
+    children.push_back(pid);
 }
 
-
-
-
-static View *primary_view(Server *server) {
-    for (auto *v : server->views) {
-        if (v->mapped && !v->closing && !v->floating &&
-            v->workspace == server->current_workspace) {
-            return v;
-        }
-    }
-    return nullptr;
+void Server::spawn(const std::string &cmd) {
+    spawn_argv({"/bin/sh", "-c", cmd});
 }
 
-static bool handle_key(Server *server, xkb_keysym_t sym, uint32_t modifiers) {
-    bool super = modifiers & WLR_MODIFIER_LOGO;
-    bool ctrl = modifiers & WLR_MODIFIER_CTRL;
-    bool alt = modifiers & WLR_MODIFIER_ALT;
-    bool shift = modifiers & WLR_MODIFIER_SHIFT;
+static void reap_children(Server *server) {
+    auto &kids = server->children;
+    kids.erase(std::remove_if(kids.begin(), kids.end(), [](pid_t pid) {
+        return waitpid(pid, nullptr, WNOHANG) != 0;
+    }), kids.end());
+}
 
-    if ((super || ctrl) && sym == XKB_KEY_Escape) {
-        wl_display_terminate(server->wl_display);
-        return true;
+static int on_sigchld(int signal_number, void *data) {
+    (void)signal_number;
+    reap_children((Server *)data);
+    return 0;
+}
+
+static int on_respawn_timer(void *data) {
+    Server *server = (Server *)data;
+    server->start_terminal();
+    return 0;
+}
+
+static int on_repeat_timer(void *data) {
+    Server *server = (Server *)data;
+    const Repeat &r = server->repeat;
+    if (r.kind == RepeatKind::Binding && r.binding >= 0) {
+        server->run_action(r.binding);
+    } else if (r.kind == RepeatKind::LauncherKey && server->launcher->open) {
+        server->launcher->key(r.sym, r.utf8);
+    } else {
+        return 0;
     }
+    wl_event_source_timer_update(server->repeat_timer, 1000 / server->settings.repeat_rate);
+    return 0;
+}
 
-    if (super && !shift && sym == XKB_KEY_Return) {
-        std::string term;
-        if (server->config) term = server->config->get("launcher", "terminal");
-        if (term.empty()) {
-            const char *t = std::getenv("TERMINAL");
-            term = (t && *t) ? t : "/usr/bin/kitty";
-        }
-        pid_t pid = fork();
-        if (pid == 0) {
-            setsid();
-            execlp("/bin/sh", "/bin/sh", "-c", term.c_str(), (char *)nullptr);
-            wlr_log(WLR_ERROR, "failed to exec terminal '%s': %s", term.c_str(), strerror(errno));
-            _exit(1);
-        }
-        if (pid < 0) {
-            wlr_log(WLR_ERROR, "failed to fork terminal: %s", strerror(errno));
-        }
-        return true;
+void Server::start_repeat(const Repeat &r) {
+    if (!repeat_timer) {
+        repeat_timer = wl_event_loop_add_timer(wl_display_get_event_loop(wl_display),
+                                               on_repeat_timer, this);
     }
+    repeat = r;
+    wl_event_source_timer_update(repeat_timer, settings.repeat_delay);
+}
 
-    if (super && sym == XKB_KEY_q) {
+void Server::stop_repeat(uint32_t keycode) {
+    if (repeat.kind == RepeatKind::None || keycode != repeat.keycode) return;
+    repeat = Repeat{};
+    if (repeat_timer) wl_event_source_timer_update(repeat_timer, 0);
+}
 
-
-        View *v = primary_view(server);
-        if (!v) v = server->focused_view();
-        if (v) server->close_view(v);
-        return true;
+void Server::start_terminal() {
+    for (auto *v : stack) {
+        if (v->terminal) return;
     }
+    if (settings.terminal.empty()) return;
+    spawn_argv({settings.terminal});
+}
 
-    if (alt && sym == XKB_KEY_Tab) {
-        if (server->views.size() > 1) {
-            auto it = std::find(server->views.begin(), server->views.end(),
-                                server->focused_view());
-            if (it == server->views.end()) {
-                it = server->views.begin();
-            } else {
-                ++it;
-                if (it == server->views.end()) it = server->views.begin();
-            }
-            struct wlr_surface *s = (*it)->wlr_surface();
-            server->focus_view(*it, s);
-        }
-        return true;
+void Server::terminal_gone() {
+    if (!respawn_timer) {
+        respawn_timer = wl_event_loop_add_timer(wl_display_get_event_loop(wl_display),
+                                                on_respawn_timer, this);
     }
+    wl_event_source_timer_update(respawn_timer, 500);
+}
 
+void Server::start_satellite() {
+    if (settings.satellite.empty()) return;
+    setenv("DISPLAY", settings.satellite_display.c_str(), true);
+    spawn_argv({settings.satellite, settings.satellite_display});
+}
 
-    switch (sym) {
-        case XKB_KEY_XF86MonBrightnessDown: spawn_cmd("brightnessctl -q set 5%-"); return true;
-        case XKB_KEY_XF86MonBrightnessUp:   spawn_cmd("brightnessctl -q set 5%+"); return true;
-        case XKB_KEY_XF86KbdBrightnessDown:
-            spawn_cmd(server->config
-                ? server->config->get("keybinds", "kbd_brightness_down",
-                    "brightnessctl --device='smc::kbd_backlight' set 10%-").c_str()
-                : "brightnessctl --device='smc::kbd_backlight' set 10%-");
-            return true;
-        case XKB_KEY_XF86KbdBrightnessUp:
-            spawn_cmd(server->config
-                ? server->config->get("keybinds", "kbd_brightness_up",
-                    "brightnessctl --device='smc::kbd_backlight' set +10%").c_str()
-                : "brightnessctl --device='smc::kbd_backlight' set +10%");
-            return true;
-        case XKB_KEY_XF86AudioLowerVolume:  spawn_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"); return true;
-        case XKB_KEY_XF86AudioRaiseVolume:  spawn_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"); return true;
-        case XKB_KEY_XF86AudioMute:         spawn_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"); return true;
-        default: break;
+static void apply_repeat_settings(Server *server) {
+    if (server->keyboard) {
+        wlr_keyboard_set_repeat_info(server->keyboard, server->settings.repeat_rate,
+                                     server->settings.repeat_delay);
     }
-
-    if (super) {
-        switch (sym) {
-            case XKB_KEY_F1: spawn_cmd("brightnessctl -q set 5%-"); return true;
-            case XKB_KEY_F2: spawn_cmd("brightnessctl -q set 5%+"); return true;
-            case XKB_KEY_F3: spawn_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"); return true;
-            case XKB_KEY_F4: spawn_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"); return true;
-            default: break;
-        }
-    }
-
-
-    if (super) {
-        switch (sym) {
-            case XKB_KEY_Left:
-                if (alt) server->swap_focus(-1);
-                else server->move_focus(-1);
-                return true;
-            case XKB_KEY_Right:
-                if (alt) server->swap_focus(1);
-                else server->move_focus(1);
-                return true;
-            case XKB_KEY_space:
-                server->toggle_floating();
-                return true;
-            case XKB_KEY_f:
-                server->toggle_fullscreen();
-                return true;
-            case XKB_KEY_r:
-                server->reload_config();
-                return true;
-            case XKB_KEY_d: {
-                pid_t pid = fork();
-                if (pid == 0) {
-                    setsid();
-                    execlp("/usr/bin/fuzzel", "fuzzel", (char *)nullptr);
-                    wlr_log(WLR_ERROR, "failed to exec fuzzel: %s", strerror(errno));
-                    _exit(1);
-                }
-                return true;
-            }
-            case XKB_KEY_Return:
-                if (shift) server->move_to_master();
-                return true;
-            default:
-                break;
-        }
-
-        if (sym >= XKB_KEY_1 && sym <= XKB_KEY_9) {
-            int ws = sym - XKB_KEY_1 + 1;
-            if (shift) server->move_focused_to_workspace(ws);
-            else server->switch_workspace(ws);
-            return true;
-        }
-    }
-
-    return false;
 }
 
 static void keyboard_handle_key(wl_listener *listener, void *data) {
     Keyboard *kb = wl_container_of(listener, kb, key);
+    Server *server = kb->server;
     struct wlr_keyboard *keyboard = wlr_keyboard_from_input_device(kb->device);
     struct wlr_keyboard_key_event *event = (struct wlr_keyboard_key_event *)data;
 
     uint32_t keycode = event->keycode + 8;
-    const xkb_keysym_t *syms;
-    int nsyms = xkb_state_key_get_syms(keyboard->xkb_state, keycode, &syms);
-
     uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard);
     bool consumed = kb->swallowed && kb->swallowed_keycode == event->keycode;
 
-    if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED && nsyms > 0) {
-        wlr_log(WLR_INFO, "KEY keycode=%u sym=0x%x mods=0x%x (logo=%d ctrl=%d alt=%d shift=%d)",
-                event->keycode, (unsigned)syms[0], modifiers,
-                !!(modifiers & WLR_MODIFIER_LOGO), !!(modifiers & WLR_MODIFIER_CTRL),
-                !!(modifiers & WLR_MODIFIER_ALT), !!(modifiers & WLR_MODIFIER_SHIFT));
+    if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+        xkb_layout_index_t layout = xkb_state_key_get_layout(keyboard->xkb_state, keycode);
+        const xkb_keysym_t *base = nullptr;
+        int n = xkb_keymap_key_get_syms_by_level(keyboard->keymap, keycode, layout, 0, &base);
         kb->swallowed = false;
-        for (int i = 0; i < nsyms; i++) {
-            if (handle_key(kb->server, syms[i], modifiers)) {
-                kb->swallowed = true;
-                kb->swallowed_keycode = event->keycode;
+
+        for (int i = 0; i < n && !kb->swallowed; i++) {
+            int idx = server->find_binding(base[i], modifiers);
+            if (idx < 0) continue;
+            server->run_action(idx);
+            kb->swallowed = true;
+            kb->swallowed_keycode = event->keycode;
+            if (server->bindings[idx].repeat) {
+                Repeat r;
+                r.kind = RepeatKind::Binding;
+                r.binding = idx;
+                r.keycode = event->keycode;
+                server->start_repeat(r);
             }
         }
+
+        if (!kb->swallowed && server->launcher->open &&
+            !(modifiers & (WLR_MODIFIER_LOGO | WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT))) {
+            char buf[32] = {0};
+            xkb_state_key_get_utf8(keyboard->xkb_state, keycode, buf, sizeof(buf));
+            std::string utf8 = buf;
+            xkb_keysym_t sym = n > 0 ? base[0] : XKB_KEY_NoSymbol;
+            server->launcher->key(sym, utf8);
+            kb->swallowed = true;
+            kb->swallowed_keycode = event->keycode;
+            Repeat r;
+            r.kind = RepeatKind::LauncherKey;
+            r.sym = sym;
+            r.utf8 = utf8;
+            r.keycode = event->keycode;
+            server->start_repeat(r);
+        }
+    } else if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED) {
+        server->stop_repeat(event->keycode);
     }
 
-    wlr_seat_set_keyboard(kb->server->seat, keyboard);
-
-
+    wlr_seat_set_keyboard(server->seat, keyboard);
 
     if (consumed) {
         kb->swallowed = false;
@@ -263,8 +266,7 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
         return;
     }
 
-    wlr_seat_keyboard_notify_key(kb->server->seat, event->time_msec, event->keycode,
-                                 event->state);
+    wlr_seat_keyboard_notify_key(server->seat, event->time_msec, event->keycode, event->state);
 }
 
 static void keyboard_handle_modifiers(wl_listener *listener, void *data) {
@@ -301,7 +303,8 @@ static void server_new_keyboard(Server *server, struct wlr_input_device *device)
     xkb_keymap_unref(keymap);
     xkb_context_unref(context);
 
-    wlr_keyboard_set_repeat_info(keyboard, 25, 600);
+    wlr_keyboard_set_repeat_info(keyboard, server->settings.repeat_rate,
+                                 server->settings.repeat_delay);
 
     kb->modifiers.notify = keyboard_handle_modifiers;
     wl_signal_add(&keyboard->events.modifiers, &kb->modifiers);
@@ -319,41 +322,18 @@ static void configure_libinput(struct wlr_input_device *device) {
     struct libinput_device *dev = wlr_libinput_get_device_handle(device);
     if (!dev) return;
 
-
-
-
-
     if (libinput_device_config_tap_get_finger_count(dev) > 0) {
-        enum libinput_config_status st =
-            libinput_device_config_tap_set_enabled(dev, LIBINPUT_CONFIG_TAP_ENABLED);
-        wlr_log(WLR_INFO, "tap enabled: status=%d fingers=%d", (int)st,
-                libinput_device_config_tap_get_finger_count(dev));
-        enum libinput_config_tap_button_map cur =
-            libinput_device_config_tap_get_button_map(dev);
-        if (cur != LIBINPUT_CONFIG_TAP_MAP_LRM) {
-            st = libinput_device_config_tap_set_button_map(dev,
-                LIBINPUT_CONFIG_TAP_MAP_LRM);
-            wlr_log(WLR_INFO, "tap map LMR->LRM: status=%d", (int)st);
-        } else {
-            wlr_log(WLR_INFO, "tap map already LRM");
+        libinput_device_config_tap_set_enabled(dev, LIBINPUT_CONFIG_TAP_ENABLED);
+        if (libinput_device_config_tap_get_button_map(dev) != LIBINPUT_CONFIG_TAP_MAP_LRM) {
+            libinput_device_config_tap_set_button_map(dev, LIBINPUT_CONFIG_TAP_MAP_LRM);
         }
     }
-
     if (libinput_device_config_scroll_get_methods(dev) & LIBINPUT_CONFIG_SCROLL_2FG) {
-        enum libinput_config_status st =
-            libinput_device_config_scroll_set_method(dev, LIBINPUT_CONFIG_SCROLL_2FG);
-        wlr_log(WLR_INFO, "scroll 2fg: status=%d", (int)st);
+        libinput_device_config_scroll_set_method(dev, LIBINPUT_CONFIG_SCROLL_2FG);
         if (libinput_device_config_scroll_has_natural_scroll(dev)) {
             libinput_device_config_scroll_set_natural_scroll_enabled(dev, false);
         }
     }
-    wlr_log(WLR_INFO, "touchpad configured: tap+LRM + two-finger scroll");
-}
-
-static void server_new_pointer(Server *server, struct wlr_input_device *device) {
-    server->pointer_device = device;
-    configure_libinput(device);
-    wlr_cursor_attach_input_device(server->cursor, device);
 }
 
 static void handle_new_input(wl_listener *listener, void *data) {
@@ -362,7 +342,9 @@ static void handle_new_input(wl_listener *listener, void *data) {
 
     switch (device->type) {
         case WLR_INPUT_DEVICE_POINTER:
-            server_new_pointer(server, device);
+            server->pointer_device = device;
+            configure_libinput(device);
+            wlr_cursor_attach_input_device(server->cursor, device);
             break;
         case WLR_INPUT_DEVICE_KEYBOARD:
             server_new_keyboard(server, device);
@@ -376,30 +358,25 @@ static void handle_new_input(wl_listener *listener, void *data) {
     wlr_seat_set_capabilities(server->seat, caps);
 }
 
-
-
-
-
 static void handle_new_output(wl_listener *listener, void *data) {
     Server *server = wl_container_of(listener, server, new_output);
     struct wlr_output *wlr_output = (struct wlr_output *)data;
 
     Output *output = create_output(server, wlr_output);
-    if (!output) {
-        wlr_log(WLR_ERROR, "Failed to create output %s", wlr_output->name);
-        return;
-    }
+    if (!output) return;
 
     wlr_output_layout_add_auto(server->output_layout, wlr_output);
     wlr_scene_output_layout_add_output(
         wlr_scene_attach_output_layout(server->scene, server->output_layout),
         wlr_output_layout_get(server->output_layout, wlr_output), output->scene_output);
     wlr_cursor_attach_output_layout(server->cursor, server->output_layout);
+
+    int w = 0, h = 0;
+    wlr_output_effective_resolution(wlr_output, &w, &h);
+    wlr_scene_rect_set_size(server->background, w, h);
+    server->launcher->relayout();
+    server->configure_all();
 }
-
-
-
-
 
 struct LayerSurface {
     Server *server;
@@ -416,8 +393,7 @@ static void arrange_layer_surface(LayerSurface *ls) {
     struct wlr_box full_area = {};
     struct wlr_box usable_area = {};
     if (layer->output) {
-        wlr_output_effective_resolution(layer->output,
-            &full_area.width, &full_area.height);
+        wlr_output_effective_resolution(layer->output, &full_area.width, &full_area.height);
         usable_area = full_area;
     }
     wlr_scene_layer_surface_v1_configure(ls->scene, &full_area, &usable_area);
@@ -437,8 +413,6 @@ static void layer_surface_map(wl_listener *listener, void *data) {
     (void)data;
     LayerSurface *ls = wl_container_of(listener, ls, map);
     arrange_layer_surface(ls);
-
-
     struct wlr_layer_surface_v1 *layer = ls->scene->layer_surface;
     if (layer->current.keyboard_interactive !=
             ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE &&
@@ -452,14 +426,7 @@ static void layer_surface_map(wl_listener *listener, void *data) {
 static void layer_surface_unmap(wl_listener *listener, void *data) {
     (void)data;
     LayerSurface *ls = wl_container_of(listener, ls, unmap);
-
-    for (auto *v : ls->server->views) {
-        if (v->mapped && v->wlr_surface() &&
-            v->workspace == ls->server->current_workspace) {
-            ls->server->focus_view(v, v->wlr_surface());
-            break;
-        }
-    }
+    ls->server->focus_top();
 }
 
 static void layer_surface_destroy(wl_listener *listener, void *data) {
@@ -496,111 +463,35 @@ static void handle_new_layer_surface(wl_listener *listener, void *data) {
     wl_signal_add(&layer_surface->surface->events.unmap, &ls->unmap);
     ls->destroy.notify = layer_surface_destroy;
     wl_signal_add(&layer_surface->events.destroy, &ls->destroy);
-
-    wlr_log(WLR_INFO, "new layer surface (namespace=%s)",
-            layer_surface->wlr_layer_namespace ? layer_surface->wlr_layer_namespace : "(null)");
 }
-
-
-
-
-
-
-
-
 
 struct PopupWatcher {
     Server *server;
     struct wl_listener new_popup;
     struct wl_listener commit;
     struct wl_listener destroy;
-    bool position_logged = false;
 };
 
-static void watch_xdg_popups(Server *server, struct wlr_xdg_surface *xdg_surface);
-
-
-
+static void create_xdg_popup(Server *server, struct wlr_xdg_surface *xdg_surface);
 
 static void popup_watcher_on_commit(wl_listener *listener, void *data) {
-    PopupWatcher *w = wl_container_of(listener, w, commit);
+    (void)listener;
     struct wlr_surface *surf = (struct wlr_surface *)data;
     struct wlr_xdg_surface *s = wlr_xdg_surface_try_from_wlr_surface(surf);
-    if (!s || s->role != WLR_XDG_SURFACE_ROLE_POPUP || !s->popup) return;
-
-
-
-
-    if (s->initial_commit) {
+    if (s && s->role == WLR_XDG_SURFACE_ROLE_POPUP && s->popup && s->initial_commit) {
         wlr_xdg_surface_schedule_configure(s);
     }
-
-    if (w->position_logged) return;
-    w->position_logged = true;
-    struct wlr_box g = s->current.geometry;
-    int nx = -1, ny = -1;
-    int px = -1, py = -1;
-    struct wlr_scene_tree *tree = (struct wlr_scene_tree *)s->data;
-    if (tree) {
-        wlr_scene_node_coords(&tree->node, &nx, &ny);
-        if (tree->node.parent)
-            wlr_scene_node_coords(&tree->node.parent->node, &px, &py);
-    }
-    wlr_log(WLR_INFO,
-            "popup MAP geo=%dx%d@%d,%d node=(%d,%d) window_tree=(%d,%d) cursor=(%.0f,%.0f)",
-            g.width, g.height, g.x, g.y, nx, ny, px, py,
-            w->server->cursor ? w->server->cursor->x : -1,
-            w->server->cursor ? w->server->cursor->y : -1);
-}
-
-
-
-
-static void create_xdg_popup(Server *server, struct wlr_xdg_surface *xdg_surface) {
-    if (!xdg_surface || xdg_surface->role != WLR_XDG_SURFACE_ROLE_POPUP) return;
-    struct wlr_xdg_popup *popup = xdg_surface->popup;
-    struct wlr_scene_tree *parent = server->scene_shell;
-
-    struct wlr_surface *anc = popup ? popup->parent : nullptr;
-    while (anc) {
-        struct wlr_xdg_surface *as = wlr_xdg_surface_try_from_wlr_surface(anc);
-        if (as && as->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-            for (auto *v : server->views)
-                if (v->xdg_surface == as && v->scene_tree) { parent = v->scene_tree; break; }
-            break;
-        }
-        if (as && as->popup) { anc = as->popup->parent; continue; }
-        break;
-    }
-
-    struct wlr_scene_tree *node = wlr_scene_xdg_surface_create(parent, xdg_surface);
-    if (!node) {
-        wlr_log(WLR_ERROR, "xdg popup: scene create failed");
-        return;
-    }
-    xdg_surface->data = node;
-
-    int px = 0, py = 0;
-    wlr_scene_node_coords(&node->node, &px, &py);
-    struct wlr_box g = xdg_surface->current.geometry;
-    wlr_log(WLR_INFO,
-            "xdg popup created: geo=%dx%d@%d,%d node_coords=(%d,%d) parent_tree=%p is_root=%d",
-            g.width, g.height, g.x, g.y, px, py, (void *)parent, parent == server->scene_shell);
-
-
-    watch_xdg_popups(server, xdg_surface);
-
-    wlr_log(WLR_INFO, "xdg popup created (parent=%p tree=%p)", (void *)anc, (void *)parent);
 }
 
 static void popup_watcher_on_new_popup(wl_listener *listener, void *data) {
-    struct PopupWatcher *w = wl_container_of(listener, w, new_popup);
+    PopupWatcher *w = wl_container_of(listener, w, new_popup);
     struct wlr_xdg_popup *popup = (struct wlr_xdg_popup *)data;
     create_xdg_popup(w->server, popup->base);
 }
 
 static void popup_watcher_on_destroy(wl_listener *listener, void *data) {
-    struct PopupWatcher *w = wl_container_of(listener, w, destroy);
+    (void)data;
+    PopupWatcher *w = wl_container_of(listener, w, destroy);
     wl_list_remove(&w->new_popup.link);
     wl_list_remove(&w->commit.link);
     wl_list_remove(&w->destroy.link);
@@ -618,350 +509,91 @@ static void watch_xdg_popups(Server *server, struct wlr_xdg_surface *xdg_surface
     wl_signal_add(&xdg_surface->events.destroy, &w->destroy);
 }
 
+static void create_xdg_popup(Server *server, struct wlr_xdg_surface *xdg_surface) {
+    if (!xdg_surface || xdg_surface->role != WLR_XDG_SURFACE_ROLE_POPUP) return;
+    struct wlr_xdg_popup *popup = xdg_surface->popup;
+    struct wlr_scene_tree *parent = server->scene_apps;
+
+    struct wlr_surface *anc = popup ? popup->parent : nullptr;
+    while (anc) {
+        struct wlr_xdg_surface *as = wlr_xdg_surface_try_from_wlr_surface(anc);
+        if (as && as->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
+            for (auto *v : server->stack) {
+                if (v->xdg_surface == as && v->scene_tree) {
+                    parent = v->scene_tree;
+                    break;
+                }
+            }
+            break;
+        }
+        if (as && as->popup) {
+            anc = as->popup->parent;
+            continue;
+        }
+        break;
+    }
+
+    struct wlr_scene_tree *node = wlr_scene_xdg_surface_create(parent, xdg_surface);
+    if (!node) return;
+    xdg_surface->data = node;
+    watch_xdg_popups(server, xdg_surface);
+}
+
 static void handle_new_xdg_toplevel(wl_listener *listener, void *data) {
     Server *server = wl_container_of(listener, server, new_xdg_surface);
     struct wlr_xdg_toplevel *toplevel = (struct wlr_xdg_toplevel *)data;
     struct wlr_xdg_surface *xdg_surface = toplevel->base;
 
-    struct wlr_scene_tree *scene_tree =
-        wlr_scene_xdg_surface_create(server->scene_shell, xdg_surface);
+    struct wlr_scene_tree *scene_tree = wlr_scene_xdg_surface_create(server->scene_apps, xdg_surface);
     auto *view = new View(server, xdg_surface, scene_tree);
     scene_tree->node.data = view;
-    view->workspace = server->current_workspace;
-
-    server->views.push_back(view);
-    wlr_log(WLR_INFO, "new xdg toplevel created (role=%d) ws=%d cur=%d", (int)xdg_surface->role,
-            view->workspace, server->current_workspace);
-
+    wlr_scene_node_set_enabled(&scene_tree->node, false);
 
     watch_xdg_popups(server, xdg_surface);
 }
 
+struct DecorationWatch {
+    struct wlr_xdg_toplevel_decoration_v1 *decoration;
+    struct wl_listener request_mode;
+    struct wl_listener destroy;
+};
 
-
-
-
-static void handle_xwayland_new_surface(wl_listener *listener, void *data) {
-    Server *server = wl_container_of(listener, server, xwayland_new_surface);
-    struct wlr_xwayland_surface *xsurface = (struct wlr_xwayland_surface *)data;
-
-    if (vlswm_xsurface_override_redirect(xsurface)) {
-        return;
+static void decoration_force_server_side(struct wlr_xdg_toplevel_decoration_v1 *decoration) {
+    bool ready = decoration->toplevel && decoration->toplevel->base &&
+                 decoration->toplevel->base->initialized;
+    if (ready) {
+        wlr_xdg_toplevel_decoration_v1_set_mode(decoration,
+            WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+    } else {
+        decoration->scheduled_mode = WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
     }
-
-    struct wlr_scene_tree *scene_tree =
-        wlr_scene_tree_create(server->scene_shell);
-    auto *view = new View(server, xsurface, scene_tree);
-    scene_tree->node.data = view;
-    view->workspace = server->current_workspace;
-
-    server->views.push_back(view);
-    wlr_log(WLR_INFO, "new xwayland surface (window %u) ws=%d",
-            vlswm_xsurface_window_id(xsurface), view->workspace);
 }
 
-static void handle_xwayland_ready(wl_listener *listener, void *data) {
+static void decoration_request_mode(wl_listener *listener, void *data) {
     (void)data;
-    Server *server = wl_container_of(listener, server, xwayland_ready);
-    setenv("DISPLAY", vlswm_xwayland_display_name(server->xwayland), true);
-    wlr_xwayland_set_seat(server->xwayland, server->seat);
-    wlr_log(WLR_INFO, "Xwayland ready (DISPLAY=%s)",
-            vlswm_xwayland_display_name(server->xwayland));
+    DecorationWatch *w = wl_container_of(listener, w, request_mode);
+    decoration_force_server_side(w->decoration);
 }
 
-
-
-
-
-View *Server::focused_view() {
-    if (!seat) return nullptr;
-    struct wlr_surface *focused = seat->keyboard_state.focused_surface;
-    if (!focused) return nullptr;
-
-    auto match = [&](struct wlr_surface *s) -> View * {
-        for (auto *v : views)
-            if (v->wlr_surface() == s) return v;
-        return nullptr;
-    };
-    if (View *v = match(focused)) return v;
-
-
-
-
-
-    struct wlr_surface *s = focused;
-    for (int depth = 0; depth < 8 && s; depth++) {
-        struct wlr_xdg_surface *xs = wlr_xdg_surface_try_from_wlr_surface(s);
-        if (!xs || xs->role != WLR_XDG_SURFACE_ROLE_POPUP ||
-            !xs->popup || !xs->popup->parent)
-            break;
-        s = xs->popup->parent;
-        if (View *v = match(s)) return v;
-    }
-    return nullptr;
-}
-
-void Server::focus_view(View *view, struct wlr_surface *surface) {
-    if (!view || !view->wlr_surface() || !surface) {
-        wlr_seat_keyboard_clear_focus(seat);
-        return;
-    }
-    struct wlr_surface *prev = seat->keyboard_state.focused_surface;
-    if (prev == surface) return;
-
-
-    if (prev) {
-        for (auto *v : views) {
-            if (v != view && v->wlr_surface() == prev) {
-                if (v->xdg_surface && v->xdg_surface->toplevel) {
-                    wlr_xdg_toplevel_set_activated(v->xdg_surface->toplevel, false);
-                } else if (v->xsurface) {
-                    wlr_xwayland_surface_activate(v->xsurface, false);
-                }
-            }
-        }
-    }
-
-
-    if (view->xdg_surface && view->xdg_surface->toplevel) {
-        wlr_xdg_toplevel_set_activated(view->xdg_surface->toplevel, true);
-    } else if (view->xsurface) {
-        wlr_xwayland_surface_activate(view->xsurface, true);
-    }
-    wlr_scene_node_raise_to_top(&view->scene_tree->node);
-
-
-
-
-
-
-    if (view->wlr_surface() == surface) {
-        struct wlr_keyboard *kb = keyboard;
-        if (kb) {
-            wlr_seat_keyboard_notify_enter(seat, surface,
-                                           kb->keycodes, kb->num_keycodes, &kb->modifiers);
-        }
-    }
-}
-
-void Server::move_focus(int dx) {
-    View *cur = focused_view();
-    if (!cur || views.empty()) return;
-
-
-    std::list<View *> order;
-    for (auto *v : views) {
-        if (v->mapped && !v->floating && !v->fullscreen &&
-            v->workspace == current_workspace) order.push_back(v);
-    }
-    if (order.empty()) return;
-
-    auto it = std::find(order.begin(), order.end(), cur);
-    if (it == order.end()) it = order.begin();
-
-    if (dx > 0) {
-        ++it;
-        if (it == order.end()) it = order.begin();
-    } else {
-        if (it == order.begin()) it = order.end();
-        --it;
-    }
-
-    focus_view(*it, (*it)->xdg_surface->surface);
-
-    arrange();
-}
-
-void Server::swap_focus(int dx) {
-    View *cur = focused_view();
-    if (!cur || views.size() < 2) return;
-
-
-    std::list<View *> order;
-    for (auto *v : views) {
-        if (v->mapped && !v->floating && !v->fullscreen &&
-            v->workspace == current_workspace) order.push_back(v);
-    }
-    if (order.size() < 2) return;
-
-    auto it = std::find(order.begin(), order.end(), cur);
-    if (it == order.end()) return;
-
-    auto other = it;
-    if (dx > 0) {
-        ++other;
-        if (other == order.end()) other = order.begin();
-    } else {
-        if (other == order.begin()) other = order.end();
-        --other;
-    }
-    if (other == it) return;
-
-
-
-    View *a = cur, *b = *other;
-    auto ia = std::find(views.begin(), views.end(), a);
-    auto ib = std::find(views.begin(), views.end(), b);
-    if (ia == views.end() || ib == views.end()) return;
-    std::iter_swap(ia, ib);
-
-
-    focus_view(cur, cur->xdg_surface->surface);
-    arrange();
-}
-
-void Server::move_to_master() {
-    View *cur = focused_view();
-    if (!cur) return;
-    views.remove(cur);
-    views.push_front(cur);
-    arrange();
-}
-
-void Server::toggle_floating() {
-    View *cur = focused_view();
-    if (!cur) return;
-    cur->floating = !cur->floating;
-    arrange();
-    corners_update(this, cur);
-}
-
-void Server::toggle_fullscreen() {
-    View *cur = focused_view();
-    if (!cur) return;
-    cur->fullscreen = !cur->fullscreen;
-    arrange();
-    corners_update(this, cur);
-}
-
-void Server::switch_workspace(int id) {
-    current_workspace = id;
-    wlr_log(WLR_INFO, "switch_workspace -> %d", id);
-
-    for (auto *v : views) {
-        if (v->mapped && v->workspace == id && v->xdg_surface) {
-            focus_view(v, v->xdg_surface->surface);
-            break;
-        }
-    }
-    suppress_anims = true;
-    arrange();
-    suppress_anims = false;
-}
-
-void Server::move_focused_to_workspace(int id) {
-    View *cur = focused_view();
-    if (!cur) return;
-    cur->workspace = id;
-
-    bool any_left = false;
-    for (auto *v : views) {
-        if (v->workspace == current_workspace) { any_left = true; break; }
-    }
-    if (!any_left) current_workspace = id;
-    suppress_anims = true;
-    arrange();
-    suppress_anims = false;
-}
-
-void Server::workspace_refresh() {
-    suppress_anims = true;
-    arrange();
-    suppress_anims = false;
-}
-
-
-
-
-
-
-static void process_cursor_motion(Server *server, uint32_t time_msec) {
-    double sx, sy;
-    struct wlr_surface *surface = nullptr;
-    View *view = desktop_view_at(server, server->cursor->x, server->cursor->y,
-                                 &surface, &sx, &sy);
-
-    if (view && surface) {
-        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "left_ptr");
-        wlr_seat_pointer_notify_enter(server->seat, surface, sx, sy);
-        wlr_seat_pointer_notify_motion(server->seat, time_msec, sx, sy);
-    } else {
-        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
-        wlr_seat_pointer_clear_focus(server->seat);
-    }
-}
-
-static void handle_cursor_motion(wl_listener *listener, void *data) {
-    Server *server = wl_container_of(listener, server, cursor_motion);
-    struct wlr_pointer_motion_event *event = (struct wlr_pointer_motion_event *)data;
-    wlr_cursor_move(server->cursor, server->pointer_device, event->delta_x, event->delta_y);
-    process_cursor_motion(server, event->time_msec);
-}
-
-static void handle_cursor_motion_absolute(wl_listener *listener, void *data) {
-    Server *server = wl_container_of(listener, server, cursor_motion_absolute);
-    struct wlr_pointer_motion_absolute_event *event =
-        (struct wlr_pointer_motion_absolute_event *)data;
-    wlr_cursor_warp_absolute(server->cursor, server->pointer_device, event->x, event->y);
-    process_cursor_motion(server, event->time_msec);
-}
-
-static void handle_cursor_button(wl_listener *listener, void *data) {
-    Server *server = wl_container_of(listener, server, cursor_button);
-    struct wlr_pointer_button_event *event = (struct wlr_pointer_button_event *)data;
-
-
-
-
-
-    if (event->button == BTN_MIDDLE && server->pointer_device &&
-        wlr_input_device_is_libinput(server->pointer_device)) {
-        struct libinput_device *ldev =
-            wlr_libinput_get_device_handle(server->pointer_device);
-        if (ldev && libinput_device_get_id_vendor(ldev) == 0x05ac &&
-            libinput_device_get_id_product(ldev) == 0x0291) {
-            wlr_log(WLR_DEBUG, "POINTER button=274 (3-finger tap) dropped on touchpad");
-            return;
-        }
-    }
-
-    double sx, sy;
-    struct wlr_surface *surface = nullptr;
-    View *view = nullptr;
-    if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
-        view = desktop_view_at(server, server->cursor->x, server->cursor->y,
-                               &surface, &sx, &sy);
-        wlr_log(WLR_INFO, "POINTER button=%u down at(%.0f,%.0f) surface=%p view=%p offset(%.0f,%.0f)",
-                event->button, server->cursor->x, server->cursor->y,
-                (void *)surface, (void *)view, sx, sy);
-        if (view && surface) {
-            server->focus_view(view, surface);
-        }
-    }
-
-    wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button,
-                                   event->state);
-}
-
-static void handle_cursor_axis(wl_listener *listener, void *data) {
-    Server *server = wl_container_of(listener, server, cursor_axis);
-    struct wlr_pointer_axis_event *event = (struct wlr_pointer_axis_event *)data;
-    wlr_log(WLR_DEBUG, "POINTER axis orient=%d delta=%.3f discrete=%d source=%d",
-            event->orientation, event->delta, event->delta_discrete, event->source);
-    wlr_seat_pointer_notify_axis(server->seat, event->time_msec, event->orientation,
-                                 event->delta, event->delta_discrete, event->source,
-                                 event->relative_direction);
-}
-
-static void handle_cursor_frame(wl_listener *listener, void *data) {
-    Server *server = wl_container_of(listener, server, cursor_frame);
+static void decoration_destroy(wl_listener *listener, void *data) {
     (void)data;
-    wlr_seat_pointer_notify_frame(server->seat);
+    DecorationWatch *w = wl_container_of(listener, w, destroy);
+    wl_list_remove(&w->request_mode.link);
+    wl_list_remove(&w->destroy.link);
+    delete w;
 }
 
-
-
-
+static void handle_new_decoration(wl_listener *listener, void *data) {
+    (void)listener;
+    auto *decoration = (struct wlr_xdg_toplevel_decoration_v1 *)data;
+    auto *w = new DecorationWatch;
+    w->decoration = decoration;
+    w->request_mode.notify = decoration_request_mode;
+    w->destroy.notify = decoration_destroy;
+    wl_signal_add(&decoration->events.request_mode, &w->request_mode);
+    wl_signal_add(&decoration->events.destroy, &w->destroy);
+    decoration_force_server_side(decoration);
+}
 
 static void handle_request_set_selection(wl_listener *listener, void *data) {
     Server *server = wl_container_of(listener, server, request_set_selection);
@@ -993,8 +625,7 @@ static void handle_request_activate(wl_listener *listener, void *data) {
     struct wlr_xdg_activation_v1_request_activate_event *event =
         (struct wlr_xdg_activation_v1_request_activate_event *)data;
     if (!event->token || !event->surface) return;
-
-    for (auto *v : server->views) {
+    for (auto *v : server->stack) {
         if (v->wlr_surface() == event->surface) {
             server->focus_view(v, event->surface);
             return;
@@ -1002,14 +633,83 @@ static void handle_request_activate(wl_listener *listener, void *data) {
     }
 }
 
+static void process_cursor_motion(Server *server, uint32_t time_msec) {
+    double sx = 0, sy = 0;
+    struct wlr_surface *surface = nullptr;
+    View *view = desktop_view_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
+    if (view && surface) {
+        if (surface != server->seat->pointer_state.focused_surface) {
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "left_ptr");
+            wlr_seat_pointer_notify_enter(server->seat, surface, sx, sy);
+        }
+        wlr_seat_pointer_notify_motion(server->seat, time_msec, sx, sy);
+    } else if (server->seat->pointer_state.focused_surface) {
+        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+        wlr_seat_pointer_clear_focus(server->seat);
+    }
+}
 
+static void handle_cursor_motion(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, cursor_motion);
+    struct wlr_pointer_motion_event *event = (struct wlr_pointer_motion_event *)data;
+    wlr_cursor_move(server->cursor, server->pointer_device, event->delta_x, event->delta_y);
+    process_cursor_motion(server, event->time_msec);
+}
 
+static void handle_cursor_motion_absolute(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, cursor_motion_absolute);
+    struct wlr_pointer_motion_absolute_event *event =
+        (struct wlr_pointer_motion_absolute_event *)data;
+    wlr_cursor_warp_absolute(server->cursor, server->pointer_device, event->x, event->y);
+    process_cursor_motion(server, event->time_msec);
+}
 
-bool Server::init(IniConfig *config) {
-    this->config = config;
-    this->xdg_activation = nullptr;
-    const char *socket_name;
+static void handle_cursor_button(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, cursor_button);
+    struct wlr_pointer_button_event *event = (struct wlr_pointer_button_event *)data;
+
+    if (event->button == BTN_MIDDLE && server->pointer_device &&
+        wlr_input_device_is_libinput(server->pointer_device)) {
+        struct libinput_device *ldev = wlr_libinput_get_device_handle(server->pointer_device);
+        if (ldev && libinput_device_get_id_vendor(ldev) == 0x05ac &&
+            libinput_device_get_id_product(ldev) == 0x0291) {
+            return;
+        }
+    }
+
+    if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        double sx = 0, sy = 0;
+        struct wlr_surface *surface = nullptr;
+        View *view = desktop_view_at(server, server->cursor->x, server->cursor->y,
+                                     &surface, &sx, &sy);
+        if (view && surface) server->focus_view(view, surface);
+    }
+
+    wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
+}
+
+static void handle_cursor_axis(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, cursor_axis);
+    struct wlr_pointer_axis_event *event = (struct wlr_pointer_axis_event *)data;
+    wlr_seat_pointer_notify_axis(server->seat, event->time_msec, event->orientation,
+                                 event->delta, event->delta_discrete, event->source,
+                                 event->relative_direction);
+}
+
+static void handle_cursor_frame(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, cursor_frame);
+    (void)data;
+    wlr_seat_pointer_notify_frame(server->seat);
+}
+
+bool Server::init(std::unique_ptr<IniConfig> cfg) {
+    float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    const char *socket_name = nullptr;
+    config = std::move(cfg);
+    check_config();
+    load_settings();
+    load_bindings();
 
     wl_display = wl_display_create();
     if (!wl_display) return false;
@@ -1017,24 +717,24 @@ bool Server::init(IniConfig *config) {
     struct wlr_session *session = nullptr;
     backend = wlr_backend_autocreate(wl_display_get_event_loop(wl_display), &session);
     if (!backend) {
-        wlr_log(WLR_ERROR, "Failed to create backend");
+        wlr_log(WLR_ERROR, "failed to create backend");
         goto fail;
     }
 
     renderer = wlr_renderer_autocreate(backend);
     if (!renderer) {
-        wlr_log(WLR_ERROR, "Failed to create renderer");
+        wlr_log(WLR_ERROR, "failed to create renderer");
         goto fail;
     }
     wlr_renderer_init_wl_display(renderer, wl_display);
 
     allocator = wlr_allocator_autocreate(backend, renderer);
     if (!allocator) {
-        wlr_log(WLR_ERROR, "Failed to create allocator");
+        wlr_log(WLR_ERROR, "failed to create allocator");
         goto fail;
     }
 
-compositor = wlr_compositor_create(wl_display, 6, renderer);
+    compositor = wlr_compositor_create(wl_display, 6, renderer);
     xdg_shell = wlr_xdg_shell_create(wl_display, 6);
     layer_shell = wlr_layer_shell_v1_create(wl_display, 4);
     wlr_subcompositor_create(wl_display);
@@ -1043,12 +743,11 @@ compositor = wlr_compositor_create(wl_display, 6, renderer);
     wlr_fractional_scale_manager_v1_create(wl_display, 1);
     wlr_content_type_manager_v1_create(wl_display, 1);
     wlr_single_pixel_buffer_manager_v1_create(wl_display);
-    wlr_xdg_decoration_manager_v1_create(wl_display);
+    decoration_mgr = wlr_xdg_decoration_manager_v1_create(wl_display);
     wlr_pointer_gestures_v1_create(wl_display);
     wlr_text_input_manager_v3_create(wl_display);
-    this->xdg_activation = wlr_xdg_activation_v1_create(wl_display);
-
-    xwayland = wlr_xwayland_create(wl_display, compositor, false );
+    wlr_presentation_create(wl_display, backend, 1);
+    xdg_activation = wlr_xdg_activation_v1_create(wl_display);
 
     wlr_data_device_manager_create(wl_display);
     wlr_data_control_manager_v1_create(wl_display);
@@ -1059,8 +758,13 @@ compositor = wlr_compositor_create(wl_display, 6, renderer);
 
     scene = wlr_scene_create();
     scene_background = wlr_scene_tree_create(&scene->tree);
-    scene_shell = wlr_scene_tree_create(&scene->tree);
+    background = wlr_scene_rect_create(scene_background, 1, 1, black);
+    scene_apps = wlr_scene_tree_create(&scene->tree);
+    scene_overlay = wlr_scene_tree_create(&scene->tree);
     scene_layers = wlr_scene_tree_create(&scene->tree);
+
+    launcher = new Launcher;
+    launcher->init(this);
 
     cursor = wlr_cursor_create();
     wlr_cursor_attach_output_layout(cursor, output_layout);
@@ -1075,7 +779,7 @@ compositor = wlr_compositor_create(wl_display, 6, renderer);
     wl_signal_add(&seat->events.request_set_primary_selection, &request_set_primary_selection);
     request_start_drag.notify = handle_request_start_drag;
     wl_signal_add(&seat->events.request_start_drag, &request_start_drag);
-    if (this->xdg_activation) {
+    if (xdg_activation) {
         request_activate.notify = handle_request_activate;
         wl_signal_add(&xdg_activation->events.request_activate, &request_activate);
     }
@@ -1088,10 +792,8 @@ compositor = wlr_compositor_create(wl_display, 6, renderer);
     wl_signal_add(&xdg_shell->events.new_toplevel, &new_xdg_surface);
     new_layer_surface.notify = handle_new_layer_surface;
     wl_signal_add(&layer_shell->events.new_surface, &new_layer_surface);
-    xwayland_ready.notify = handle_xwayland_ready;
-    wl_signal_add(vlswm_xwayland_signal_ready(xwayland), &xwayland_ready);
-    xwayland_new_surface.notify = handle_xwayland_new_surface;
-    wl_signal_add(vlswm_xwayland_signal_new_surface(xwayland), &xwayland_new_surface);
+    new_decoration.notify = handle_new_decoration;
+    wl_signal_add(&decoration_mgr->events.new_toplevel_decoration, &new_decoration);
 
     cursor_motion.notify = handle_cursor_motion;
     wl_signal_add(&cursor->events.motion, &cursor_motion);
@@ -1104,31 +806,40 @@ compositor = wlr_compositor_create(wl_display, 6, renderer);
     cursor_frame.notify = handle_cursor_frame;
     wl_signal_add(&cursor->events.frame, &cursor_frame);
 
+    wl_event_loop_add_signal(wl_display_get_event_loop(wl_display), SIGCHLD, on_sigchld, this);
 
     socket_name = wl_display_add_socket_auto(wl_display);
     if (!socket_name) {
-        wlr_log(WLR_ERROR, "Failed to add Wayland socket (XDG_RUNTIME_DIR=%s)",
-                std::getenv("XDG_RUNTIME_DIR") ?: "unset");
-        finish();
-        return false;
+        wlr_log(WLR_ERROR, "failed to add Wayland socket");
+        goto fail;
     }
     setenv("WAYLAND_DISPLAY", socket_name, true);
-    setenv("XDG_CURRENT_DESKTOP", "vlswm:wlroots", true);
+    setenv("XDG_CURRENT_DESKTOP", "vlswm", true);
     setenv("DESKTOP_SESSION", "vlswm", true);
-    wlr_log(WLR_INFO, "vlswm listening on %s (XDG_RUNTIME_DIR=%s)",
-            socket_name, std::getenv("XDG_RUNTIME_DIR") ?: "unset");
 
     if (!wlr_backend_start(backend)) {
-        wlr_log(WLR_ERROR, "Failed to start backend");
-        finish();
-        return false;
+        wlr_log(WLR_ERROR, "failed to start backend");
+        goto fail;
     }
 
+    ghostty_setup_theme();
+    start_satellite();
+    start_terminal();
     return true;
 
 fail:
     finish();
     return false;
+}
+
+void Server::ghostty_setup_theme() {
+    theme_base = theme_read_base(settings.ghostty_dir);
+    if (theme_base.empty()) {
+        wlr_log(WLR_ERROR, "theme: no ghostty colors found in '%s'", settings.ghostty_dir.c_str());
+        return;
+    }
+    theme_ensure_include(settings.ghostty_dir);
+    theme_write(settings.ghostty_dir, theme_base, theme_white);
 }
 
 void Server::run() {
@@ -1137,13 +848,11 @@ void Server::run() {
 
 void Server::finish() {
     if (wl_display) {
-
         wl_list_remove(&new_output.link);
         wl_list_remove(&new_input.link);
         wl_list_remove(&new_xdg_surface.link);
         wl_list_remove(&new_layer_surface.link);
-        wl_list_remove(&xwayland_ready.link);
-        wl_list_remove(&xwayland_new_surface.link);
+        wl_list_remove(&new_decoration.link);
         wl_list_remove(&cursor_motion.link);
         wl_list_remove(&cursor_motion_absolute.link);
         wl_list_remove(&cursor_button.link);
@@ -1152,214 +861,276 @@ void Server::finish() {
         wl_list_remove(&request_set_selection.link);
         wl_list_remove(&request_set_primary_selection.link);
         wl_list_remove(&request_start_drag.link);
-        if (this->xdg_activation) wl_list_remove(&request_activate.link);
+        if (xdg_activation) wl_list_remove(&request_activate.link);
+        if (repeat_timer) {
+            wl_event_source_remove(repeat_timer);
+            repeat_timer = nullptr;
+        }
+        if (respawn_timer) {
+            wl_event_source_remove(respawn_timer);
+            respawn_timer = nullptr;
+        }
 
         wl_display_destroy_clients(wl_display);
         wl_display_destroy(wl_display);
         wl_display = nullptr;
     }
+    delete launcher;
+    launcher = nullptr;
 }
 
-void Server::reload_config() {
-    wlr_log(WLR_INFO, "Reloading configuration...");
+void Server::load_settings() {
+    settings.duration_ns = (uint64_t)std::max(config->get_int("animations", "duration", 300), 0) *
+                           1000000ULL;
+    settings.easing = easing_from_string(config->get("animations", "curve", "ease-out").c_str(),
+                                         Easing::EaseOut);
+    settings.repeat_delay = std::clamp(config->get_int("input", "repeat_delay", 200), 50, 2000);
+    settings.repeat_rate = std::clamp(config->get_int("input", "repeat_rate", 40), 1, 200);
+    settings.terminal = config->get("launcher", "terminal", "ghostty");
+    settings.font = config->get("launcher", "font", "JetBrainsMono Nerd Font 16");
+    settings.satellite = config->get("xwayland", "satellite", "xwayland-satellite");
+    settings.satellite_display = config->get("xwayland", "display", ":1");
+    settings.ghostty_dir = expand_home(config->get("theme", "ghostty", "~/.config/ghostty"));
+}
 
-
-    std::string config_path;
-    if (config && !config->path().empty()) {
-        config_path = config->path();
-    } else {
-        const char *xdg = std::getenv("XDG_CONFIG_HOME");
-        const char *home = std::getenv("HOME");
-        if (xdg) {
-            config_path = std::string(xdg) + "/vlswm/config";
-        } else if (home) {
-            config_path = std::string(home) + "/.config/vlswm/config";
+void Server::check_config() {
+    static const char *KNOWN[] = {
+        "animations.duration", "animations.curve",
+        "input.repeat_delay", "input.repeat_rate", "input.repeat",
+        "launcher.terminal", "launcher.font",
+        "xwayland.satellite", "xwayland.display",
+        "theme.ghostty",
+    };
+    for (const auto &kv : config->values) {
+        if (kv.first.rfind("keybinds.", 0) == 0 || kv.first.rfind("commands.", 0) == 0) continue;
+        bool known = false;
+        for (const char *k : KNOWN) {
+            if (kv.first == k) {
+                known = true;
+                break;
+            }
         }
+        if (!known) wlr_log(WLR_ERROR, "config: unknown key '%s' (ignored)", kv.first.c_str());
     }
+}
 
-    if (config_path.empty()) {
-        wlr_log(WLR_ERROR, "No config path available for reload");
-        return;
+static bool is_repeat_action(const std::string &name, const std::string &list) {
+    std::stringstream ss(list);
+    std::string item;
+    while (std::getline(ss, item, ',')) {
+        if (trim(item) == name) return true;
     }
+    return false;
+}
 
+void Server::load_bindings() {
+    bindings.clear();
+    const std::string prefix = "keybinds.";
+    const std::string repeat_list = config->get("input", "repeat",
+        "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down");
 
-    auto new_cfg = IniConfig::load(config_path);
-    if (!new_cfg) {
-        wlr_log(WLR_ERROR, "Failed to reload config from %s", config_path.c_str());
-        return;
-    }
+    for (const auto &kv : config->values) {
+        if (kv.first.rfind(prefix, 0) != 0) continue;
+        std::string action = kv.first.substr(prefix.size());
 
-
-    IniConfig *old_cfg = config;
-
-
-    config = new IniConfig(std::move(*new_cfg));
-
-
-    std::string wp = config->get("wallpaper", "path");
-    for (auto *output : outputs) {
-        struct wlr_output *wlr_output = output->wlr_output;
-        int bw, bh;
-        wlr_output_effective_resolution(wlr_output, &bw, &bh);
-        double ox = 0.0, oy = 0.0;
-        wlr_output_layout_output_coords(output_layout, wlr_output, &ox, &oy);
-
-        if (output->background) {
-            wlr_scene_node_destroy(output->background);
-            output->background = nullptr;
-        }
-
-        struct wlr_scene_buffer *wallpaper =
-            wp.empty() ? nullptr : wallpaper_create(this, wp.c_str(), bw, bh);
-        if (wallpaper) {
-            wlr_scene_node_set_position(&wallpaper->node, ox, oy);
-            output->background = &wallpaper->node;
+        BindAction type = BindAction::Spawn;
+        std::string cmd;
+        if (action == "launcher") type = BindAction::Launcher;
+        else if (action == "close") type = BindAction::Close;
+        else if (action == "reload") type = BindAction::Reload;
+        else if (action == "exit") type = BindAction::Exit;
+        else if (action == "theme") type = BindAction::Theme;
+        else if (action == "focus_next") type = BindAction::FocusNext;
+        else if (action == "focus_prev") type = BindAction::FocusPrev;
+        else if (config->values.count("commands." + action)) {
+            cmd = config->values.at("commands." + action);
         } else {
-            float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-            struct wlr_scene_rect *bg =
-                wlr_scene_rect_create(scene_background, bw, bh, white);
-            wlr_scene_node_set_position(&bg->node, ox, oy);
-            output->background = &bg->node;
+            wlr_log(WLR_ERROR, "config: unknown action '%s' in [keybinds]", action.c_str());
+            continue;
         }
-    }
 
-
-    arrange();
-
-
-    for (auto *v : views) {
-        corners_update(this, v);
-    }
-
-
-    delete old_cfg;
-
-    wlr_log(WLR_INFO, "Configuration reloaded successfully from %s", config_path.c_str());
-}
-
-
-
-
-
-static const int CLOSE_SLIDE = 20;
-
-bool Server::animations_enabled() const {
-    return config ? config->get_bool("animations", "enabled", true) : true;
-}
-
-uint64_t Server::animation_duration_ns() const {
-    int d = config ? config->get_int("animations", "duration", 300) : 300;
-    return (uint64_t)std::max(d, 0) * 1000000ULL;
-}
-
-Easing Server::easing() const {
-    if (!config) return Easing::EaseOut;
-    return easing_from_string(config->get("animations", "curve", "ease-out").c_str(),
-                              Easing::EaseOut);
-}
-
-void Server::animate(uint64_t now) {
-    for (auto *v : views) {
-        if (v->geo.active) {
-            int x, y, w, h;
-            bool done = v->geo.step(now, &x, &y, &w, &h);
-            if (v->closing) {
-
-
-                wlr_scene_node_set_position(&v->scene_tree->node, x, y);
-            } else {
-                view_apply_box(v, x, y, w, h);
-            }
-            v->gx = x; v->gy = y; v->gw = w; v->gh = h;
-            corners_update(this, v);
-            if (done) {
-                v->geo.active = false;
-            }
-        }
-        if (v->opening && !v->closing) {
-
-
-
-            struct wlr_scene_buffer *buf = v->scene_buffer();
-            bool ready = buf && buf->buffer &&
-                         buf->buffer->width == v->gw &&
-                         buf->buffer->height == v->gh;
-            uint64_t dur = animation_duration_ns();
-            bool stuck = v->opening_start &&
-                         (now - v->opening_start) > 2 * dur;
-            if (!ready && !stuck) {
-                if (buf) wlr_scene_buffer_set_opacity(buf, 0.0f);
-                corners_opacity(v, 0.0f);
+        std::stringstream ss(kv.second);
+        std::string combo;
+        while (std::getline(ss, combo, ',')) {
+            Binding b;
+            b.action = type;
+            b.cmd = cmd;
+            b.repeat = is_repeat_action(action, repeat_list);
+            if (!parse_combo(combo, &b.mods, &b.sym)) {
+                wlr_log(WLR_ERROR, "config: bad key '%s' for '%s'", trim(combo).c_str(),
+                        action.c_str());
                 continue;
             }
-            if (!v->fade.active) {
-                v->fade.begin(now, dur, easing(), 0.0f, 1.0f);
-            }
-        }
-        if (v->fade.active) {
-            float o;
-            bool done = v->fade.step(now, &o);
-            struct wlr_scene_buffer *buf = v->scene_buffer();
-            if (buf) wlr_scene_buffer_set_opacity(buf, o);
-            corners_opacity(v, o);
-            if (done) {
-                v->fade.active = false;
-                if (v->closing) {
-                    v->closing = false;
-                    v->opening = false;
-                    if (v->xdg_surface && v->xdg_surface->toplevel) {
-                        wlr_xdg_toplevel_send_close(v->xdg_surface->toplevel);
-                    } else if (v->xsurface) {
-                        wlr_xwayland_surface_close(v->xsurface);
-                    }
-                } else {
-                    v->opening = false;
-                }
-            }
+            bindings.push_back(b);
         }
     }
+}
+
+int Server::find_binding(xkb_keysym_t sym, uint32_t mods) const {
+    for (size_t i = 0; i < bindings.size(); i++) {
+        const auto &b = bindings[i];
+        if (b.sym == sym && b.mods == (mods & MODS_MASK)) return (int)i;
+    }
+    return -1;
+}
+
+void Server::run_action(int idx) {
+    const Binding &b = bindings[idx];
+    switch (b.action) {
+        case BindAction::Close: close_top(); break;
+        case BindAction::Exit: wl_display_terminate(wl_display); break;
+        case BindAction::Reload: reload_config(); break;
+        case BindAction::FocusNext: cycle_next(); break;
+        case BindAction::FocusPrev: cycle_prev(); break;
+        case BindAction::Theme: set_theme(!theme_white); break;
+        case BindAction::Launcher: launcher->toggle(); break;
+        case BindAction::Spawn: spawn(b.cmd); break;
+    }
+}
+
+View *Server::top_view() {
+    return stack.empty() ? nullptr : stack.back();
+}
+
+View *Server::focused_view() {
+    if (!seat) return nullptr;
+    struct wlr_surface *focused = seat->keyboard_state.focused_surface;
+    if (!focused) return nullptr;
+    for (auto *v : stack) {
+        if (v->wlr_surface() == focused) return v;
+    }
+    return nullptr;
+}
+
+void Server::focus_view(View *view, struct wlr_surface *surface) {
+    if (!view || !view->wlr_surface() || !surface) {
+        wlr_seat_keyboard_clear_focus(seat);
+        return;
+    }
+    struct wlr_surface *prev = seat->keyboard_state.focused_surface;
+    if (prev == surface) return;
+
+    for (auto *v : stack) {
+        if (v != view && v->wlr_surface() == prev && v->xdg_surface->toplevel) {
+            wlr_xdg_toplevel_set_activated(v->xdg_surface->toplevel, false);
+        }
+    }
+    if (view->xdg_surface->toplevel) {
+        wlr_xdg_toplevel_set_activated(view->xdg_surface->toplevel, true);
+    }
+    wlr_scene_node_raise_to_top(&view->scene_tree->node);
+
+    if (keyboard) {
+        wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes,
+                                       keyboard->num_keycodes, &keyboard->modifiers);
+    }
+}
+
+void Server::focus_top() {
+    View *top = top_view();
+    if (top && top->wlr_surface()) focus_view(top, top->wlr_surface());
+    else wlr_seat_keyboard_clear_focus(seat);
+}
+
+void Server::update_visibility() {
+    size_t n = stack.size();
+    for (size_t i = 0; i < n; i++) {
+        bool top = i + 1 == n;
+        bool under_closing = i + 2 == n && stack[n - 1]->closing;
+        wlr_scene_node_set_enabled(&stack[i]->scene_tree->node, top || under_closing);
+    }
+}
+
+void Server::cycle_next() {
+    if (stack.size() < 2 || stack.back()->closing) return;
+    View *top = stack.back();
+    stack.pop_back();
+    stack.insert(stack.begin(), top);
+    focus_top();
+    update_visibility();
+    request_frame();
+}
+
+void Server::cycle_prev() {
+    if (stack.size() < 2 || stack.back()->closing) return;
+    View *bottom = stack.front();
+    stack.erase(stack.begin());
+    stack.push_back(bottom);
+    focus_top();
+    update_visibility();
+    request_frame();
+}
+
+void Server::close_top() {
+    View *top = top_view();
+    if (top) close_view(top);
 }
 
 void Server::close_view(View *view) {
-    if (!view || view->closing) return;
-
-    if (!animations_enabled()) {
-        if (view->xdg_surface && view->xdg_surface->toplevel) {
-            wlr_xdg_toplevel_send_close(view->xdg_surface->toplevel);
-        } else if (view->xsurface) {
-            wlr_xwayland_surface_close(view->xsurface);
-        }
-        return;
-    }
-
+    if (!view || view->terminal || view->closing) return;
     view->closing = true;
-    view->opening = false;
-    view->geo.active = false;
-
-    uint64_t dur = animation_duration_ns();
-    Easing e = easing();
-    view->fade.begin(anim_now_ns(), dur, e, 1.0f, 0.0f);
-    view->geo.begin(anim_now_ns(), dur, e,
-                    view->gx, view->gy, view->gw, view->gh,
-                    view->gx, view->gy + CLOSE_SLIDE, view->gw, view->gh);
-
-    struct wlr_surface *focused = seat->keyboard_state.focused_surface;
-    if (focused && focused == view->wlr_surface()) {
+    if (seat->keyboard_state.focused_surface == view->wlr_surface()) {
         wlr_seat_keyboard_clear_focus(seat);
     }
+    view->fade.begin(anim_now_ns(), settings.duration_ns, settings.easing, 1.0f, 0.0f);
+    update_visibility();
+    request_frame();
+}
 
+void Server::set_theme(bool white) {
+    theme_white = white;
+    float c = white ? 1.0f : 0.0f;
+    float color[4] = {c, c, c, 1.0f};
+    wlr_scene_rect_set_color(background, color);
+    launcher->relayout();
+    if (!theme_base.empty()) {
+        theme_write(settings.ghostty_dir, theme_base, white);
+        if (base_pid > 0) kill(base_pid, SIGUSR2);
+    }
+    request_frame();
+}
 
+void Server::reload_config() {
+    if (!config) return;
+    config = std::make_unique<IniConfig>(IniConfig::load_or_empty(config->path()));
+    check_config();
+    load_settings();
+    load_bindings();
+    apply_repeat_settings(this);
+    set_theme(theme_white);
+    launcher->relayout();
+    configure_all();
+}
 
+void Server::configure_all() {
+    for (auto *v : stack) v->configure_size();
+}
 
-
+void Server::request_frame() {
     for (auto *o : outputs) {
-        if (o && o->wlr_output) {
-            wlr_output_schedule_frame(o->wlr_output);
+        if (o->wlr_output) wlr_output_schedule_frame(o->wlr_output);
+    }
+}
+
+bool Server::animations_running() const {
+    if (launcher && launcher->fade.active) return true;
+    for (auto *v : stack) {
+        if (v->fade.active) return true;
+    }
+    return false;
+}
+
+void Server::animate(uint64_t now) {
+    if (launcher) launcher->animate(now);
+
+    for (size_t i = 0; i < stack.size(); i++) {
+        View *v = stack[i];
+        if (!v->fade.active) continue;
+        float o = 1.0f;
+        bool done = v->fade.step(now, &o);
+        v->set_opacity(o);
+        if (done && v->closing && v->xdg_surface && v->xdg_surface->toplevel) {
+            wlr_xdg_toplevel_send_close(v->xdg_surface->toplevel);
         }
     }
-
-
-
-
-    arrange();
 }
