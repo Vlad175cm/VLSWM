@@ -29,6 +29,9 @@ struct Settings {
     Easing easing = Easing::EaseOut;
     int repeat_delay = 200;
     int repeat_rate = 40;
+    double scroll_speed = 0.7;
+    std::string layout = "us,ru";
+    std::string layout_options = "grp:win_space_toggle";
     std::string terminal = "ghostty";
     std::string font = "JetBrainsMono Nerd Font 16";
     std::string satellite = "xwayland-satellite";

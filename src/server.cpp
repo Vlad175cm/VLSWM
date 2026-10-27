@@ -297,8 +297,12 @@ static void server_new_keyboard(Server *server, struct wlr_input_device *device)
     kb->device = device;
 
     struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+    struct xkb_rule_names names = {};
+    names.layout = server->settings.layout.empty() ? nullptr : server->settings.layout.c_str();
+    names.options = server->settings.layout_options.empty() ? nullptr
+                                                            : server->settings.layout_options.c_str();
     struct xkb_keymap *keymap =
-        xkb_keymap_new_from_names(context, nullptr, XKB_KEYMAP_COMPILE_NO_FLAGS);
+        xkb_keymap_new_from_names(context, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
     wlr_keyboard_set_keymap(keyboard, keymap);
     xkb_keymap_unref(keymap);
     xkb_context_unref(context);
@@ -536,6 +540,15 @@ static void create_xdg_popup(Server *server, struct wlr_xdg_surface *xdg_surface
     struct wlr_scene_tree *node = wlr_scene_xdg_surface_create(parent, xdg_surface);
     if (!node) return;
     xdg_surface->data = node;
+
+    if (!server->outputs.empty()) {
+        int ow = 0, oh = 0;
+        wlr_output_effective_resolution(server->outputs.front()->wlr_output, &ow, &oh);
+        int px = 0, py = 0;
+        wlr_scene_node_coords(&parent->node, &px, &py);
+        struct wlr_box box = {-px, -py, ow, oh};
+        wlr_xdg_popup_unconstrain_from_box(popup, &box);
+    }
     watch_xdg_popups(server, xdg_surface);
 }
 
@@ -683,7 +696,7 @@ static void handle_cursor_button(wl_listener *listener, void *data) {
         struct wlr_surface *surface = nullptr;
         View *view = desktop_view_at(server, server->cursor->x, server->cursor->y,
                                      &surface, &sx, &sy);
-        if (view && surface) server->focus_view(view, surface);
+        if (view && surface) server->focus_view(view, view->wlr_surface());
     }
 
     wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
@@ -693,7 +706,8 @@ static void handle_cursor_axis(wl_listener *listener, void *data) {
     Server *server = wl_container_of(listener, server, cursor_axis);
     struct wlr_pointer_axis_event *event = (struct wlr_pointer_axis_event *)data;
     wlr_seat_pointer_notify_axis(server->seat, event->time_msec, event->orientation,
-                                 event->delta, event->delta_discrete, event->source,
+                                 event->delta * server->settings.scroll_speed,
+                                 event->delta_discrete, event->source,
                                  event->relative_direction);
 }
 
@@ -886,6 +900,14 @@ void Server::load_settings() {
                                          Easing::EaseOut);
     settings.repeat_delay = std::clamp(config->get_int("input", "repeat_delay", 200), 50, 2000);
     settings.repeat_rate = std::clamp(config->get_int("input", "repeat_rate", 40), 1, 200);
+    settings.layout = config->get("input", "layout", "us,ru");
+    settings.layout_options = config->get("input", "layout_options", "grp:win_space_toggle");
+    try {
+        settings.scroll_speed = std::clamp(std::stod(config->get("input", "scroll_speed", "0.7")),
+                                           0.1, 2.0);
+    } catch (...) {
+        settings.scroll_speed = 0.7;
+    }
     settings.terminal = config->get("launcher", "terminal", "ghostty");
     settings.font = config->get("launcher", "font", "JetBrainsMono Nerd Font 16");
     settings.satellite = config->get("xwayland", "satellite", "xwayland-satellite");
@@ -897,6 +919,7 @@ void Server::check_config() {
     static const char *KNOWN[] = {
         "animations.duration", "animations.curve",
         "input.repeat_delay", "input.repeat_rate", "input.repeat",
+        "input.layout", "input.layout_options", "input.scroll_speed",
         "launcher.terminal", "launcher.font",
         "xwayland.satellite", "xwayland.display",
         "theme.ghostty",
