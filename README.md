@@ -76,7 +76,7 @@ duration = 300                 # мс
 [input]
 repeat_delay = 200             # мс до первого повтора
 repeat_rate = 40               # повторов в секунду
-scroll_speed = 0.7             # множитель скорости прокрутки (тачпад и колесо)
+scroll_speed = 0.5             # множитель скорости прокрутки (тачпад и колесо)
 layout = "us,ru"               # раскладки клавиатуры
 layout_options = "grp:win_space_toggle"   # SUPER+SPACE переключает раскладку
 repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down"

@@ -471,6 +471,7 @@ static void handle_new_layer_surface(wl_listener *listener, void *data) {
 
 struct PopupWatcher {
     Server *server;
+    struct wlr_scene_tree *parent;
     struct wl_listener new_popup;
     struct wl_listener commit;
     struct wl_listener destroy;
@@ -479,12 +480,19 @@ struct PopupWatcher {
 static void create_xdg_popup(Server *server, struct wlr_xdg_surface *xdg_surface);
 
 static void popup_watcher_on_commit(wl_listener *listener, void *data) {
-    (void)listener;
+    PopupWatcher *w = wl_container_of(listener, w, commit);
     struct wlr_surface *surf = (struct wlr_surface *)data;
     struct wlr_xdg_surface *s = wlr_xdg_surface_try_from_wlr_surface(surf);
-    if (s && s->role == WLR_XDG_SURFACE_ROLE_POPUP && s->popup && s->initial_commit) {
-        wlr_xdg_surface_schedule_configure(s);
+    if (!s || s->role != WLR_XDG_SURFACE_ROLE_POPUP || !s->popup || !s->initial_commit) return;
+    if (!w->server->outputs.empty() && w->parent) {
+        int ow = 0, oh = 0;
+        wlr_output_effective_resolution(w->server->outputs.front()->wlr_output, &ow, &oh);
+        int px = 0, py = 0;
+        wlr_scene_node_coords(&w->parent->node, &px, &py);
+        struct wlr_box box = {-px, -py, ow, oh};
+        wlr_xdg_popup_unconstrain_from_box(s->popup, &box);
     }
+    wlr_xdg_surface_schedule_configure(s);
 }
 
 static void popup_watcher_on_new_popup(wl_listener *listener, void *data) {
@@ -502,9 +510,11 @@ static void popup_watcher_on_destroy(wl_listener *listener, void *data) {
     delete w;
 }
 
-static void watch_xdg_popups(Server *server, struct wlr_xdg_surface *xdg_surface) {
+static void watch_xdg_popups(Server *server, struct wlr_xdg_surface *xdg_surface,
+                             struct wlr_scene_tree *parent) {
     auto *w = new PopupWatcher;
     w->server = server;
+    w->parent = parent;
     w->new_popup.notify = popup_watcher_on_new_popup;
     w->commit.notify = popup_watcher_on_commit;
     w->destroy.notify = popup_watcher_on_destroy;
@@ -540,16 +550,7 @@ static void create_xdg_popup(Server *server, struct wlr_xdg_surface *xdg_surface
     struct wlr_scene_tree *node = wlr_scene_xdg_surface_create(parent, xdg_surface);
     if (!node) return;
     xdg_surface->data = node;
-
-    if (!server->outputs.empty()) {
-        int ow = 0, oh = 0;
-        wlr_output_effective_resolution(server->outputs.front()->wlr_output, &ow, &oh);
-        int px = 0, py = 0;
-        wlr_scene_node_coords(&parent->node, &px, &py);
-        struct wlr_box box = {-px, -py, ow, oh};
-        wlr_xdg_popup_unconstrain_from_box(popup, &box);
-    }
-    watch_xdg_popups(server, xdg_surface);
+    watch_xdg_popups(server, xdg_surface, parent);
 }
 
 static void handle_new_xdg_toplevel(wl_listener *listener, void *data) {
@@ -562,7 +563,7 @@ static void handle_new_xdg_toplevel(wl_listener *listener, void *data) {
     scene_tree->node.data = view;
     wlr_scene_node_set_enabled(&scene_tree->node, false);
 
-    watch_xdg_popups(server, xdg_surface);
+    watch_xdg_popups(server, xdg_surface, nullptr);
 }
 
 struct DecorationWatch {
