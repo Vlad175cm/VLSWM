@@ -29,7 +29,7 @@ struct Settings {
     Easing easing = Easing::EaseOut;
     int repeat_delay = 200;
     int repeat_rate = 40;
-    double scroll_speed = 0.7;
+    double scroll_speed = 0.5;
     std::string layout = "us,ru";
     std::string layout_options = "grp:win_space_toggle";
     std::string terminal = "ghostty";
@@ -115,7 +115,6 @@ struct Server {
     pid_t base_pid = 0;
     pid_t satellite_pid = 0;
     std::vector<pid_t> extra_terminals;
-    bool terminal_wanted = true;
     struct wl_event_source *respawn_timer = nullptr;
 
     Repeat repeat;

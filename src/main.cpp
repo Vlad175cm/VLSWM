@@ -8,7 +8,6 @@
 #include <getopt.h>
 #include <signal.h>
 #include <string>
-#include <sys/stat.h>
 #include <unistd.h>
 
 static Server *g_server = nullptr;

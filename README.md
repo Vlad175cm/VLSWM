@@ -97,7 +97,9 @@ display = ":1"
 
 ### Тема Ghostty
 
-vlswm читает цвета из вашего `config.ghostty` (и из подключённых через `config-file` файлов), создаёт файл `vlswm-theme.ghostty` в каталоге Ghostty и добавляет в `config.ghostty` строку `config-file = vlswm-theme.ghostty`. Цвета Ghostty управляются vlswm: редактировать их в `config.ghostty` бессмысленно, файл `vlswm-theme.ghostty` перезаписывается при каждом переключении темы.
+vlswm читает цвета из вашего `config.ghostty` (и из подключённых через `config-file` файлов), создаёт файл `vlswm-theme.ghostty` в каталоге Ghostty и добавляет в `config.ghostty` строку `config-file = vlswm-theme.ghostty`. Базовая палитра берётся из `config.ghostty` при старте и по `SUPER+R`, поэтому цвета там имеют смысл. Сам файл `vlswm-theme.ghostty` перезаписывается при каждом переключении темы, редактировать его вручную бесполезно.
+
+В этот же файл добавляется `app-notifications = no-config-reload`, поэтому Ghostty не показывает уведомление при перечитывании конфига.
 
 ## Клавиши по умолчанию
 
@@ -107,6 +109,7 @@ vlswm читает цвета из вашего `config.ghostty` (и из под
 | `SUPER+Q` | закрыть верхнее окно |
 | `SUPER+←` / `SUPER+→` | переключить окно |
 | `SUPER+T` | чёрный / белый |
+| `SUPER+SPACE` | переключить раскладку (us / ru) |
 | `SUPER+E` | файловый менеджер (yazi в отдельном окне Ghostty) |
 | `SUPER+R` | перечитать конфиг |
 | `SUPER+ESC` | выход |

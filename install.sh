@@ -114,7 +114,7 @@ main() {
   REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
   CONFIG_DIR="$REAL_HOME/.config/vlswm"
 
-  echo -e "${GREEN}[1/5]${NC} Installing dependencies..."
+  echo -e "${GREEN}[1/6]${NC} Installing dependencies..."
   DISTRO="$(ask_distro)"
   echo -e "  Installing dependencies for ${GREEN}$DISTRO${NC}..."
   install_dependencies "$DISTRO"
@@ -128,7 +128,7 @@ main() {
     exit 1
   fi
 
-  echo -e "${GREEN}[2/5]${NC} Building vlswm..."
+  echo -e "${GREEN}[2/6]${NC} Building vlswm..."
   if ! command -v cmake >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
     echo -e "${RED}Error: cmake and make are required to build.${NC}"
     exit 1
@@ -158,12 +158,12 @@ main() {
     fi
   fi
 
-  echo -e "${GREEN}[3/5]${NC} Installing vlswm binary to $INSTALL_DIR..."
+  echo -e "${GREEN}[3/6]${NC} Installing vlswm binary to $INSTALL_DIR..."
   cp "$SCRIPT_DIR/build/vlswm" "$INSTALL_DIR/vlswm"
   chmod +x "$INSTALL_DIR/vlswm"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm"
 
-  echo -e "${GREEN}[3/5]${NC} Installing configuration to $CONFIG_DIR..."
+  echo -e "${GREEN}[4/6]${NC} Installing configuration to $CONFIG_DIR..."
   sudo -u "$REAL_USER" mkdir -p "$CONFIG_DIR"
   if [ -f "$CONFIG_DIR/config" ]; then
     echo -e "  ${YELLOW}⚠${NC}  Config already exists, saving backup: $CONFIG_DIR/config.backup"
@@ -174,12 +174,12 @@ main() {
   chown "$REAL_USER:$REAL_USER" "$CONFIG_DIR/config"
   echo -e "  ${GREEN}✓${NC} Installed: $CONFIG_DIR/config"
 
-  echo -e "${GREEN}[4/5]${NC} Creating SDDM session in $SDDM_DIR..."
+  echo -e "${GREEN}[5/6]${NC} Creating SDDM session in $SDDM_DIR..."
   mkdir -p "$SDDM_DIR"
   cp "$SCRIPT_DIR/vlswm.desktop" "$SDDM_DIR/vlswm.desktop"
   echo -e "  ${GREEN}✓${NC} Created: $SDDM_DIR/vlswm.desktop"
 
-  echo -e "${GREEN}[5/5]${NC} Verifying installation..."
+  echo -e "${GREEN}[6/6]${NC} Verifying installation..."
   if command -v vlswm &>/dev/null; then
     echo -e "  ${GREEN}✓${NC} vlswm is available in PATH: $(vlswm --version 2>&1 || echo vlswm)"
   else
