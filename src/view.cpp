@@ -59,20 +59,28 @@ void View::xdg_map(wl_listener *listener, void *data) {
     Server *server = view->server;
 
     const char *app_id = view->xdg_surface->toplevel ? view->xdg_surface->toplevel->app_id : nullptr;
-    if (app_id && strcmp(app_id, TERMINAL_APP_ID) == 0) {
+    bool is_terminal = app_id && strcmp(app_id, TERMINAL_APP_ID) == 0;
+    if (is_terminal) {
+        pid_t pid = 0;
+        wl_client_get_credentials(wl_resource_get_client(view->xdg_surface->resource),
+                                  &pid, nullptr, nullptr);
+
         bool base_alive = false;
         for (auto *v : server->stack) {
             if (v->terminal) base_alive = true;
         }
-        if (base_alive) {
+
+        if (!base_alive && server->base_pid == 0) {
+            view->terminal = true;
+            server->base_pid = pid;
+        } else if (pid > 0 && pid == server->base_pid) {
+            view->terminal = true;
+        } else if (pid > 0 && server->take_extra_terminal(pid)) {
+            view->terminal = false;
+        } else {
             wlr_xdg_toplevel_send_close(view->xdg_surface->toplevel);
             return;
         }
-        view->terminal = true;
-        pid_t pid = 0;
-        wl_client_get_credentials(wl_resource_get_client(view->xdg_surface->resource),
-                                  &pid, nullptr, nullptr);
-        server->base_pid = pid;
     }
 
     view->mapped = true;

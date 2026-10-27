@@ -11,6 +11,7 @@ exit = "SUPER+ESC"
 theme = "SUPER+T"
 focus_prev = "SUPER+LEFT"
 focus_next = "SUPER+RIGHT"
+file_manager = "SUPER+E"
 zen = "SUPER+Z"
 brightness_up = "XF86MonBrightnessUp, SUPER+F2"
 brightness_down = "XF86MonBrightnessDown, SUPER+F1"
@@ -32,6 +33,7 @@ volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
 
 [launcher]
 terminal = "ghostty"
+file_manager = "yazi"
 font = "JetBrainsMono Nerd Font 16"
 
 [theme]

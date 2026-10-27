@@ -107,7 +107,7 @@ struct Keyboard {
     uint32_t swallowed_keycode = 0;
 };
 
-void Server::spawn_argv(const std::vector<std::string> &argv) {
+pid_t Server::spawn_argv(const std::vector<std::string> &argv) {
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
     posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSID);
@@ -119,13 +119,30 @@ void Server::spawn_argv(const std::vector<std::string> &argv) {
     posix_spawnattr_destroy(&attr);
     if (r != 0) {
         wlr_log(WLR_ERROR, "cannot run '%s': %s", args[0], strerror(r));
-        return;
+        return 0;
     }
     children.push_back(pid);
+    return pid;
 }
 
 void Server::spawn(const std::string &cmd) {
     spawn_argv({"/bin/sh", "-c", cmd});
+}
+
+void Server::spawn_file_manager() {
+    if (settings.terminal.empty() || settings.file_manager.empty()) return;
+    pid_t pid = spawn_argv({settings.terminal, "-e", settings.file_manager});
+    if (pid > 0) extra_terminals.push_back(pid);
+}
+
+bool Server::take_extra_terminal(pid_t pid) {
+    for (auto it = extra_terminals.begin(); it != extra_terminals.end(); ++it) {
+        if (*it == pid) {
+            extra_terminals.erase(it);
+            return true;
+        }
+    }
+    return false;
 }
 
 static void reap_children(Server *server) {
@@ -181,10 +198,12 @@ void Server::start_terminal() {
         if (v->terminal) return;
     }
     if (settings.terminal.empty()) return;
-    spawn_argv({settings.terminal});
+    pid_t pid = spawn_argv({settings.terminal});
+    if (pid > 0) base_pid = pid;
 }
 
 void Server::terminal_gone() {
+    base_pid = 0;
     if (!respawn_timer) {
         respawn_timer = wl_event_loop_add_timer(wl_display_get_event_loop(wl_display),
                                                 on_respawn_timer, this);
@@ -195,7 +214,7 @@ void Server::terminal_gone() {
 void Server::start_satellite() {
     if (settings.satellite.empty()) return;
     setenv("DISPLAY", settings.satellite_display.c_str(), true);
-    spawn_argv({settings.satellite, settings.satellite_display});
+    satellite_pid = spawn_argv({settings.satellite, settings.satellite_display});
 }
 
 static void apply_repeat_settings(Server *server) {
@@ -886,6 +905,23 @@ void Server::finish() {
             respawn_timer = nullptr;
         }
 
+        for (pid_t pid : children) {
+            if (pid > 0) kill(-pid, SIGTERM);
+        }
+        for (pid_t pid : extra_terminals) {
+            if (pid > 0) kill(-pid, SIGTERM);
+        }
+        if (base_pid > 0) kill(-base_pid, SIGTERM);
+        if (satellite_pid > 0) kill(-satellite_pid, SIGTERM);
+        for (int i = 0; i < 20; i++) {
+            bool alive = false;
+            for (pid_t pid : children) {
+                if (pid > 0 && waitpid(pid, nullptr, WNOHANG) == 0) alive = true;
+            }
+            if (!alive) break;
+            usleep(10000);
+        }
+
         wl_display_destroy_clients(wl_display);
         wl_display_destroy(wl_display);
         wl_display = nullptr;
@@ -910,6 +946,7 @@ void Server::load_settings() {
         settings.scroll_speed = 0.7;
     }
     settings.terminal = config->get("launcher", "terminal", "ghostty");
+    settings.file_manager = config->get("launcher", "file_manager", "yazi");
     settings.font = config->get("launcher", "font", "JetBrainsMono Nerd Font 16");
     settings.satellite = config->get("xwayland", "satellite", "xwayland-satellite");
     settings.satellite_display = config->get("xwayland", "display", ":1");
@@ -921,7 +958,7 @@ void Server::check_config() {
         "animations.duration", "animations.curve",
         "input.repeat_delay", "input.repeat_rate", "input.repeat",
         "input.layout", "input.layout_options", "input.scroll_speed",
-        "launcher.terminal", "launcher.font",
+        "launcher.terminal", "launcher.file_manager", "launcher.font",
         "xwayland.satellite", "xwayland.display",
         "theme.ghostty",
     };
@@ -960,6 +997,7 @@ void Server::load_bindings() {
         BindAction type = BindAction::Spawn;
         std::string cmd;
         if (action == "launcher") type = BindAction::Launcher;
+        else if (action == "file_manager") type = BindAction::FileManager;
         else if (action == "close") type = BindAction::Close;
         else if (action == "reload") type = BindAction::Reload;
         else if (action == "exit") type = BindAction::Exit;
@@ -1008,6 +1046,7 @@ void Server::run_action(int idx) {
         case BindAction::FocusPrev: cycle_prev(); break;
         case BindAction::Theme: set_theme(!theme_white); break;
         case BindAction::Launcher: launcher->toggle(); break;
+        case BindAction::FileManager: spawn_file_manager(); break;
         case BindAction::Spawn: spawn(b.cmd); break;
     }
 }

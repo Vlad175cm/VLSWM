@@ -33,6 +33,7 @@ struct Settings {
     std::string layout = "us,ru";
     std::string layout_options = "grp:win_space_toggle";
     std::string terminal = "ghostty";
+    std::string file_manager = "yazi";
     std::string font = "JetBrainsMono Nerd Font 16";
     std::string satellite = "xwayland-satellite";
     std::string satellite_display = ":1";
@@ -47,6 +48,7 @@ enum class BindAction {
     FocusPrev,
     Theme,
     Launcher,
+    FileManager,
     Spawn,
 };
 
@@ -112,6 +114,7 @@ struct Server {
 
     pid_t base_pid = 0;
     pid_t satellite_pid = 0;
+    std::vector<pid_t> extra_terminals;
     bool terminal_wanted = true;
     struct wl_event_source *respawn_timer = nullptr;
 
@@ -147,7 +150,9 @@ struct Server {
     void start_repeat(const Repeat &r);
     void stop_repeat(uint32_t keycode);
     void spawn(const std::string &cmd);
-    void spawn_argv(const std::vector<std::string> &argv);
+    pid_t spawn_argv(const std::vector<std::string> &argv);
+    void spawn_file_manager();
+    bool take_extra_terminal(pid_t pid);
     void start_terminal();
     void terminal_gone();
     void start_satellite();

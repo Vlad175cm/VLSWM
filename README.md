@@ -56,6 +56,7 @@ exit = "SUPER+ESC"
 theme = "SUPER+T"
 focus_prev = "SUPER+LEFT"
 focus_next = "SUPER+RIGHT"
+file_manager = "SUPER+E"
 zen = "SUPER+Z"                 # приложение: ключ из [commands]
 volume_up = "XF86AudioRaiseVolume, SUPER+F4"
 
@@ -65,6 +66,7 @@ volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
 
 [launcher]
 terminal = "ghostty"
+file_manager = "yazi"
 font = "JetBrainsMono Nerd Font 16"
 
 [theme]
@@ -105,6 +107,7 @@ vlswm читает цвета из вашего `config.ghostty` (и из под
 | `SUPER+Q` | закрыть верхнее окно |
 | `SUPER+←` / `SUPER+→` | переключить окно |
 | `SUPER+T` | чёрный / белый |
+| `SUPER+E` | файловый менеджер (yazi в отдельном окне Ghostty) |
 | `SUPER+R` | перечитать конфиг |
 | `SUPER+ESC` | выход |
 | `SUPER+F1` / `SUPER+F2` | яркость −/+ |
