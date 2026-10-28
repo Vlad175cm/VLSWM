@@ -878,6 +878,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     setenv("WAYLAND_DISPLAY", socket_name, true);
     setenv("XDG_CURRENT_DESKTOP", "vlswm", true);
     setenv("DESKTOP_SESSION", "vlswm", true);
+    setenv("GTK_USE_PORTAL", "1", true);
 
     if (!wlr_backend_start(backend)) {
         wlr_log(WLR_ERROR, "failed to start backend");
