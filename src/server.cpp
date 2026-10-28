@@ -105,6 +105,7 @@ struct Keyboard {
     struct wl_listener destroy;
     bool swallowed = false;
     uint32_t swallowed_keycode = 0;
+    bool virtual_keyboard = false;
 };
 
 pid_t Server::spawn_argv(const std::vector<std::string> &argv) {
@@ -294,7 +295,7 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
     if (kb->swallowed && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         return;
     }
-    if (server->keyboard_grab) {
+    if (server->keyboard_grab && !kb->virtual_keyboard) {
         wlr_input_method_keyboard_grab_v2_set_keyboard(server->keyboard_grab, keyboard);
         wlr_input_method_keyboard_grab_v2_send_key(server->keyboard_grab,
             event->time_msec, event->keycode, event->state);
@@ -309,7 +310,7 @@ static void keyboard_handle_modifiers(wl_listener *listener, void *data) {
     (void)data;
     struct wlr_keyboard *keyboard = wlr_keyboard_from_input_device(kb->device);
     wlr_seat_set_keyboard(kb->server->seat, keyboard);
-    if (kb->server->keyboard_grab) {
+    if (kb->server->keyboard_grab && !kb->virtual_keyboard) {
         wlr_input_method_keyboard_grab_v2_set_keyboard(kb->server->keyboard_grab, keyboard);
         wlr_input_method_keyboard_grab_v2_send_modifiers(kb->server->keyboard_grab,
             &keyboard->modifiers);
@@ -370,6 +371,25 @@ static void server_new_keyboard(Server *server, struct wlr_input_device *device)
 
     server->keyboard = keyboard;
     wlr_seat_set_keyboard(server->seat, keyboard);
+}
+
+static void handle_new_virtual_keyboard(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, new_virtual_keyboard);
+    auto *vk = (struct wlr_virtual_keyboard_v1 *)data;
+
+    auto *kb = new Keyboard;
+    kb->server = server;
+    kb->device = &vk->keyboard.base;
+    kb->virtual_keyboard = true;
+
+    kb->modifiers.notify = keyboard_handle_modifiers;
+    wl_signal_add(&vk->keyboard.events.modifiers, &kb->modifiers);
+    kb->key.notify = keyboard_handle_key;
+    wl_signal_add(&vk->keyboard.events.key, &kb->key);
+    kb->destroy.notify = keyboard_handle_destroy;
+    wl_signal_add(&vk->keyboard.base.events.destroy, &kb->destroy);
+
+    wlr_seat_set_keyboard(server->seat, &vk->keyboard);
 }
 
 static void configure_libinput(struct wlr_input_device *device) {
@@ -818,6 +838,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wlr_pointer_gestures_v1_create(wl_display);
     text_input_mgr = wlr_text_input_manager_v3_create(wl_display);
     input_method_mgr = wlr_input_method_manager_v2_create(wl_display);
+    virtual_keyboard_mgr = wlr_virtual_keyboard_manager_v1_create(wl_display);
     wlr_presentation_create(wl_display, backend, 1);
     xdg_activation = wlr_xdg_activation_v1_create(wl_display);
 
@@ -868,6 +889,11 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wl_signal_add(&layer_shell->events.new_surface, &new_layer_surface);
     new_decoration.notify = handle_new_decoration;
     wl_signal_add(&decoration_mgr->events.new_toplevel_decoration, &new_decoration);
+    if (virtual_keyboard_mgr) {
+        new_virtual_keyboard.notify = handle_new_virtual_keyboard;
+        wl_signal_add(&virtual_keyboard_mgr->events.new_virtual_keyboard,
+                      &new_virtual_keyboard);
+    }
 
     cursor_motion.notify = handle_cursor_motion;
     wl_signal_add(&cursor->events.motion, &cursor_motion);
@@ -942,6 +968,7 @@ void Server::finish() {
         drop_listener(&request_set_primary_selection);
         drop_listener(&request_start_drag);
         drop_listener(&request_activate);
+        drop_listener(&new_virtual_keyboard);
         if (repeat_timer) {
             wl_event_source_remove(repeat_timer);
             repeat_timer = nullptr;

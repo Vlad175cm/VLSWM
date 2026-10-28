@@ -115,6 +115,7 @@ struct Server {
 
     struct wlr_text_input_manager_v3 *text_input_mgr = nullptr;
     struct wlr_input_method_manager_v2 *input_method_mgr = nullptr;
+    struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard_mgr = nullptr;
     struct wlr_input_method_v2 *input_method = nullptr;
     struct wlr_input_method_keyboard_grab_v2 *keyboard_grab = nullptr;
     std::vector<TextInput *> text_inputs;
@@ -153,6 +154,7 @@ struct Server {
     struct wl_listener im_new_popup = {};
     struct wl_listener im_destroy = {};
     struct wl_listener grab_destroy = {};
+    struct wl_listener new_virtual_keyboard = {};
 
     bool init(std::unique_ptr<IniConfig> cfg);
     void run();
