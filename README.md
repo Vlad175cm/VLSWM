@@ -30,6 +30,7 @@
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
 - Рантайм: `ghostty`, `fish`, `xwayland-satellite`, `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
+- `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
 
 ## Сборка и установка
 

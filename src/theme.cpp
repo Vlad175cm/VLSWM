@@ -3,6 +3,7 @@
 
 
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <set>
 #include <sstream>
@@ -85,6 +86,8 @@ std::string theme_invert(const std::string &hex) {
 
 bool theme_write(const std::string &ghostty_dir,
                  const std::map<std::string, std::string> &base, bool white) {
+    std::error_code ec;
+    std::filesystem::create_directories(ghostty_dir, ec);
     std::string path = ghostty_dir + "/" + VLSWM_THEME_FILE;
     std::string tmp = path + ".tmp";
 
@@ -138,6 +141,8 @@ bool theme_ensure_include(const std::string &ghostty_dir) {
         if (trim(l) == line) return true;
     }
 
+    std::error_code ec;
+    std::filesystem::create_directories(ghostty_dir, ec);
     std::ofstream out(config, std::ios::app);
     if (!out) {
         wlr_log(WLR_ERROR, "theme: cannot update '%s'", config.c_str());

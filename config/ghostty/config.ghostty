@@ -1,0 +1,86 @@
+# ──────────────────────────────────────────────────────────────────────
+#  Ghostty — high-contrast black & white
+#  ~/.config/ghostty/config.ghostty
+#
+#  Validate: ghostty +validate-config
+#  Reload:   ctrl+shift+,      (built-in reload_config)
+# ──────────────────────────────────────────────────────────────────────
+
+# ── Shell ─────────────────────────────────────────────────────────────
+# Fish explicitly, so the terminal is identical regardless of $SHELL.
+# Ghostty detects and wires up its fish integration automatically.
+command = /usr/bin/fish
+
+# ── Font ──────────────────────────────────────────────────────────────
+font-family = JetBrainsMono Nerd Font
+font-size = 14
+# Ligatures (-> => != ...) are on by default and cost nothing extra.
+# To disable them:  font-feature = -liga   and   font-feature = -calt
+
+# ── Core colors: black background, white text ─────────────────────────
+background = #000000
+foreground = #ffffff
+background-opacity = 0.5
+
+# ── ANSI 0-15 ─────────────────────────────────────────────────────────
+# Anything a program colors is forced to pure white; black stays black.
+# The single exception is slot 8 ("bright black"), the conventional slot
+# for dim/comment text, which keeps a mid gray so it stays readable
+# instead of disappearing into the background.
+palette = 0=#000000
+palette = 1=#ffffff
+palette = 2=#ffffff
+palette = 3=#ffffff
+palette = 4=#ffffff
+palette = 5=#ffffff
+palette = 6=#ffffff
+palette = 7=#ffffff
+palette = 8=#666666
+palette = 9=#ffffff
+palette = 10=#ffffff
+palette = 11=#ffffff
+palette = 12=#ffffff
+palette = 13=#ffffff
+palette = 14=#ffffff
+palette = 15=#ffffff
+
+# Indices 16-255, collapsed to a neutral ramp (generated) so that
+# 256-color programs — ls, git diff, bat, htop — cannot leak any hue.
+config-file = palette-bw.ghostty
+
+# ── Cursor ────────────────────────────────────────────────────────────
+cursor-style = block
+cursor-style-blink = false
+cursor-color = #ffffff
+cursor-text = #000000
+
+# ── Selection ─────────────────────────────────────────────────────────
+selection-background = #ffffff
+selection-foreground = #000000
+copy-on-select = clipboard
+
+# ── Window / layout ───────────────────────────────────────────────────
+window-padding-x = 8
+window-padding-y = 6
+window-padding-balance = true
+# Maximized windows drop the title bar; windowed ones keep it draggable.
+gtk-titlebar-hide-when-maximized = true
+
+# ── Split UI: the only other grays in the theme ───────────────────────
+split-divider-color = #333333
+unfocused-split-opacity = 1
+unfocused-split-fill = #000000
+
+# ── Speed / responsiveness ────────────────────────────────────────────
+mouse-hide-while-typing = true
+confirm-close-surface = false
+shell-integration = detect
+
+window-decoration = none
+
+# vlswm theme
+config-file = vlswm-theme.ghostty
+
+
+# cursor trail effect
+config-file = cursor-trail.conf
