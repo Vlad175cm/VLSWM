@@ -116,7 +116,6 @@ struct Server {
 
     pid_t base_pid = 0;
     pid_t satellite_pid = 0;
-    std::vector<pid_t> extra_terminals;
     struct wl_event_source *respawn_timer = nullptr;
 
     Repeat repeat;
@@ -154,7 +153,6 @@ struct Server {
     pid_t spawn_argv(const std::vector<std::string> &argv);
     void spawn_file_manager();
     pid_t spawn_terminal_command(const std::string &cmd);
-    bool take_extra_terminal(pid_t pid);
     void start_terminal();
     void spawn_new_terminal();
     void terminal_gone();

@@ -130,25 +130,12 @@ void Server::spawn(const std::string &cmd) {
 
 void Server::spawn_file_manager() {
     if (settings.terminal.empty() || settings.file_manager.empty()) return;
-    pid_t pid = spawn_argv({settings.terminal, "-e", settings.file_manager});
-    if (pid > 0) extra_terminals.push_back(pid);
+    spawn_argv({settings.terminal, "-e", settings.file_manager});
 }
 
 pid_t Server::spawn_terminal_command(const std::string &cmd) {
     if (settings.terminal.empty()) return 0;
-    pid_t pid = spawn_argv({settings.terminal, "-e", "/bin/sh", "-c", cmd});
-    if (pid > 0) extra_terminals.push_back(pid);
-    return pid;
-}
-
-bool Server::take_extra_terminal(pid_t pid) {
-    for (auto it = extra_terminals.begin(); it != extra_terminals.end(); ++it) {
-        if (*it == pid) {
-            extra_terminals.erase(it);
-            return true;
-        }
-    }
-    return false;
+    return spawn_argv({settings.terminal, "-e", "/bin/sh", "-c", cmd});
 }
 
 static void reap_children(Server *server) {
@@ -210,8 +197,7 @@ void Server::start_terminal() {
 
 void Server::spawn_new_terminal() {
     if (settings.terminal.empty()) return;
-    pid_t pid = spawn_argv({settings.terminal});
-    if (pid > 0) extra_terminals.push_back(pid);
+    spawn_argv({settings.terminal});
 }
 
 void Server::terminal_gone() {
@@ -924,9 +910,6 @@ void Server::finish() {
         }
 
         for (pid_t pid : children) {
-            if (pid > 0) kill(-pid, SIGTERM);
-        }
-        for (pid_t pid : extra_terminals) {
             if (pid > 0) kill(-pid, SIGTERM);
         }
         if (base_pid > 0) kill(-base_pid, SIGTERM);

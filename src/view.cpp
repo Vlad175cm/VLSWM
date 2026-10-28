@@ -70,16 +70,11 @@ void View::xdg_map(wl_listener *listener, void *data) {
             if (v->terminal) base_alive = true;
         }
 
-        if (pid > 0 && server->take_extra_terminal(pid)) {
-            view->terminal = false;
-        } else if (!base_alive && server->base_pid == 0) {
+        if (!base_alive) {
             view->terminal = true;
-            server->base_pid = pid;
-        } else if (pid > 0 && pid == server->base_pid) {
-            view->terminal = true;
+            if (server->base_pid == 0) server->base_pid = pid;
         } else {
-            wlr_xdg_toplevel_send_close(view->xdg_surface->toplevel);
-            return;
+            view->terminal = (pid > 0 && pid == server->base_pid);
         }
     }
 
