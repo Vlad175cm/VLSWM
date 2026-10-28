@@ -15,7 +15,6 @@
 - `SUPER+T` переключает тему: чёрный ↔ белый. Меняются фон экрана, рамка и поле лаунчера. Тема Ghostty тоже меняется во **всех** окнах терминала: vlswm записывает инвертированную палитру и посылает каждому Ghostty сигнал перечитать конфиг, без закрытия.
 - Анимация одна: fade 300 мс при открытии, закрытии и появлении лаунчера.
 - X11-приложения работают через `xwayland-satellite`.
-- IME работает через `text-input-v3` и `input-method-v2`: подойдёт `fcitx5` или `ibus`. Запустите IME один раз за сессию (`fcitx5 -d`). Wayland-приложения подхватят его сами; для X11-приложений задайте `XMODIFIERS=@im=fcitx` (или `@im=ibus`).
 
 ## Рекомендуемый браузер
 
@@ -145,7 +144,6 @@ vlswmstat --version
 - `src/server.cpp` — ввод, привязки, стек окон, процессы, xwayland-satellite.
 - `src/view.cpp` — окна (xdg), открытие и закрытие.
 - `src/launcher.cpp` — лаунчер (cairo + pango).
-- `src/input_method.cpp` — IME: `text-input-v3` + `input-method-v2`, grab клавиатуры и попап кандидатов.
 - `src/theme.cpp` — тема Ghostty.
 - `src/vlswmstat.cpp` — дашборд `vlswmstat`.
 - `src/output.cpp`, `src/ini.cpp`, `src/animation.cpp` — выход, конфиг, анимации.
