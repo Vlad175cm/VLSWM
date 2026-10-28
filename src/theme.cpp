@@ -93,6 +93,11 @@ bool theme_write(const std::string &ghostty_dir,
     body << "app-notifications = no-config-reload\n";
     for (const auto &kv : base) {
         std::string color = white ? theme_invert(kv.second) : kv.second;
+        if (kv.first == "cursor-color") {
+            color = white ? "#000000" : "#ffffff";
+        } else if (kv.first == "cursor-text") {
+            color = white ? "#ffffff" : "#000000";
+        }
         if (kv.first.rfind("palette:", 0) == 0) {
             body << "palette = " << kv.first.substr(8) << "=" << color << "\n";
         } else {

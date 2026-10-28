@@ -134,6 +134,13 @@ void Server::spawn_file_manager() {
     if (pid > 0) extra_terminals.push_back(pid);
 }
 
+pid_t Server::spawn_terminal_command(const std::string &cmd) {
+    if (settings.terminal.empty()) return 0;
+    pid_t pid = spawn_argv({settings.terminal, "-e", "/bin/sh", "-c", cmd});
+    if (pid > 0) extra_terminals.push_back(pid);
+    return pid;
+}
+
 bool Server::take_extra_terminal(pid_t pid) {
     for (auto it = extra_terminals.begin(); it != extra_terminals.end(); ++it) {
         if (*it == pid) {
@@ -997,6 +1004,7 @@ void Server::load_bindings() {
         std::string cmd;
         if (action == "launcher") type = BindAction::Launcher;
         else if (action == "file_manager") type = BindAction::FileManager;
+        else if (action == "restart_terminal") type = BindAction::RestartTerminal;
         else if (action == "close") type = BindAction::Close;
         else if (action == "reload") type = BindAction::Reload;
         else if (action == "exit") type = BindAction::Exit;
@@ -1046,6 +1054,7 @@ void Server::run_action(int idx) {
         case BindAction::Theme: set_theme(!theme_white); break;
         case BindAction::Launcher: launcher->toggle(); break;
         case BindAction::FileManager: spawn_file_manager(); break;
+        case BindAction::RestartTerminal: restart_terminal(); break;
         case BindAction::Spawn: spawn(b.cmd); break;
     }
 }
@@ -1123,6 +1132,19 @@ void Server::cycle_prev() {
     request_frame();
 }
 
+void Server::restart_terminal() {
+    for (auto *v : stack) {
+        if (!v->terminal) continue;
+        if (base_pid > 0) {
+            kill(-base_pid, SIGTERM);
+        } else if (v->xdg_surface && v->xdg_surface->toplevel) {
+            wlr_xdg_toplevel_send_close(v->xdg_surface->toplevel);
+        }
+        return;
+    }
+    start_terminal();
+}
+
 void Server::close_top() {
     View *top = top_view();
     if (top) close_view(top);
@@ -1175,7 +1197,7 @@ void Server::request_frame() {
 }
 
 bool Server::animations_running() const {
-    if (launcher && launcher->fade.active) return true;
+    if (launcher && launcher->busy()) return true;
     for (auto *v : stack) {
         if (v->fade.active) return true;
     }

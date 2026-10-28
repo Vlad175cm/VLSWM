@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(vlswm VERSION 0.3.0 LANGUAGES C CXX)
+project(vlswm VERSION 0.4.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,6 +11,7 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
+find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 
 pkg_check_modules(WAYLAND REQUIRED wayland-server)
 pkg_check_modules(WLROOTS REQUIRED wlroots-0.20)
@@ -20,6 +21,42 @@ pkg_check_modules(CAIRO REQUIRED cairo)
 pkg_check_modules(PANGO REQUIRED pango)
 pkg_check_modules(PANGOCAIRO REQUIRED pangocairo)
 pkg_check_modules(LIBINPUT REQUIRED libinput)
+pkg_check_modules(WLR_PROTOCOLS wlr-protocols)
+
+if(WLR_PROTOCOLS_FOUND)
+    pkg_get_variable(WLR_PROTOCOLS_DATADIR wlr-protocols pkgdatadir)
+endif()
+set(WLR_PROTOCOLS_DATADIR "${WLR_PROTOCOLS_DATADIR}" CACHE PATH
+    "Directory with wlr-protocols XML files")
+
+set(VLSWM_PROTOCOL_DIR ${CMAKE_BINARY_DIR}/protocols)
+file(MAKE_DIRECTORY ${VLSWM_PROTOCOL_DIR})
+
+set(VLSWM_PROTOCOL_HEADERS)
+foreach(proto
+        wlr-layer-shell-unstable-v1)
+    set(xml ${WLR_PROTOCOLS_DATADIR}/unstable/${proto}.xml)
+    set(header ${VLSWM_PROTOCOL_DIR}/${proto}-protocol.h)
+    set(_proto_paths)
+    foreach(_inc ${WLROOTS_INCLUDE_DIRS})
+        list(APPEND _proto_paths ${_inc} ${_inc}/wlr/types)
+    endforeach()
+    find_path(${proto}_HEADER NAMES ${proto}-protocol.h PATHS ${_proto_paths})
+    if(WLR_PROTOCOLS_DATADIR AND EXISTS ${xml})
+        add_custom_command(
+            OUTPUT ${header}
+            COMMAND ${WAYLAND_SCANNER} server-header ${xml} ${header}
+            DEPENDS ${xml}
+            COMMENT "Generating ${proto}-protocol.h")
+        list(APPEND VLSWM_PROTOCOL_HEADERS ${header})
+    elseif(NOT ${proto}_HEADER)
+        message(FATAL_ERROR
+            "Missing ${proto}-protocol.h. Install the wlr-protocols package "
+            "or a wlroots build that ships the generated headers.")
+    endif()
+endforeach()
+
+add_custom_target(vlswm-protocols DEPENDS ${VLSWM_PROTOCOL_HEADERS})
 
 add_executable(vlswm
     src/main.cpp
@@ -32,8 +69,11 @@ add_executable(vlswm
     src/animation.cpp
 )
 
+add_dependencies(vlswm vlswm-protocols)
+
 target_include_directories(vlswm PRIVATE
     ${CMAKE_SOURCE_DIR}/include
+    ${VLSWM_PROTOCOL_DIR}
     ${WAYLAND_INCLUDE_DIRS}
     ${WLROOTS_INCLUDE_DIRS}
     ${XKBCOMMON_INCLUDE_DIRS}

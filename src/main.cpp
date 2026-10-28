@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
     while ((opt = getopt_long(argc, argv, "c:vh", long_opts, nullptr)) != -1) {
         switch (opt) {
             case 'c': config_path = optarg; break;
-            case 'v': std::fprintf(stdout, "vlswm 0.3.0\n"); return 0;
+            case 'v': std::fprintf(stdout, "vlswm 0.4.0\n"); return 0;
             case 'h': print_usage(argv[0]); return 0;
             default: print_usage(argv[0]); return 1;
         }

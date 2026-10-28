@@ -28,14 +28,14 @@ install_dependencies() {
   case "$distro" in
   arch)
     pacman -S --needed --noconfirm wayland wlroots0.20 wayland-protocols \
-      libxkbcommon pixman libinput cairo pango \
+      libxkbcommon pixman libinput cairo pango wlr-protocols \
       pkgconf cmake make gcc \
       ghostty fish xwayland-satellite brightnessctl wireplumber sddm \
       ttf-jetbrains-mono-nerd
     ;;
   fedora)
     dnf install -y wayland-devel wlroots-devel xkbcommon-devel \
-      pixman-devel libinput-devel cairo-devel pango-devel \
+      pixman-devel libinput-devel cairo-devel pango-devel wlr-protocols-devel \
       pkgconf-pkg-config cmake gcc-c++ make \
       fish brightnessctl pipewire wireplumber sddm jetbrains-mono-fonts
     warn_manual_install
@@ -52,7 +52,7 @@ install_dependencies() {
   opensuse)
     zypper install -y wlroots-devel wayland-devel libxkbcommon-devel \
       pixman-devel libinput-devel cairo-devel pango-devel \
-      pkg-config cmake gcc-c++ make \
+      wlr-protocols-devel pkg-config cmake gcc-c++ make \
       fish brightnessctl pipewire wireplumber sddm
     warn_manual_install
     ;;

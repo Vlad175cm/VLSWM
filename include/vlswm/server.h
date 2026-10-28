@@ -49,6 +49,7 @@ enum class BindAction {
     Theme,
     Launcher,
     FileManager,
+    RestartTerminal,
     Spawn,
 };
 
@@ -151,6 +152,7 @@ struct Server {
     void spawn(const std::string &cmd);
     pid_t spawn_argv(const std::vector<std::string> &argv);
     void spawn_file_manager();
+    pid_t spawn_terminal_command(const std::string &cmd);
     bool take_extra_terminal(pid_t pid);
     void start_terminal();
     void terminal_gone();
@@ -166,6 +168,7 @@ struct Server {
     void cycle_prev();
     void close_top();
     void close_view(View *view);
+    void restart_terminal();
     void set_theme(bool white);
     void configure_all();
     void request_frame();
