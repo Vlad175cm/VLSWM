@@ -3,6 +3,7 @@
 #include "vlswm/view.h"
 #include "vlswm/launcher.h"
 #include "vlswm/theme.h"
+#include "vlswm/input_method.h"
 
 #include <xkbcommon/xkbcommon.h>
 #include <linux/input.h>
@@ -293,6 +294,12 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
     if (kb->swallowed && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         return;
     }
+    if (server->keyboard_grab) {
+        wlr_input_method_keyboard_grab_v2_set_keyboard(server->keyboard_grab, keyboard);
+        wlr_input_method_keyboard_grab_v2_send_key(server->keyboard_grab,
+            event->time_msec, event->keycode, event->state);
+        return;
+    }
 
     wlr_seat_keyboard_notify_key(server->seat, event->time_msec, event->keycode, event->state);
 }
@@ -302,6 +309,12 @@ static void keyboard_handle_modifiers(wl_listener *listener, void *data) {
     (void)data;
     struct wlr_keyboard *keyboard = wlr_keyboard_from_input_device(kb->device);
     wlr_seat_set_keyboard(kb->server->seat, keyboard);
+    if (kb->server->keyboard_grab) {
+        wlr_input_method_keyboard_grab_v2_set_keyboard(kb->server->keyboard_grab, keyboard);
+        wlr_input_method_keyboard_grab_v2_send_modifiers(kb->server->keyboard_grab,
+            &keyboard->modifiers);
+        return;
+    }
     wlr_seat_keyboard_notify_modifiers(kb->server->seat, &keyboard->modifiers);
 }
 
@@ -461,6 +474,7 @@ static void layer_surface_map(wl_listener *listener, void *data) {
         struct wlr_keyboard *kb = ls->server->keyboard;
         wlr_seat_keyboard_notify_enter(ls->server->seat, layer->surface,
             kb->keycodes, kb->num_keycodes, &kb->modifiers);
+        input_method_set_focus(ls->server, layer->surface);
     }
 }
 
@@ -802,7 +816,8 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wlr_single_pixel_buffer_manager_v1_create(wl_display);
     decoration_mgr = wlr_xdg_decoration_manager_v1_create(wl_display);
     wlr_pointer_gestures_v1_create(wl_display);
-    wlr_text_input_manager_v3_create(wl_display);
+    text_input_mgr = wlr_text_input_manager_v3_create(wl_display);
+    input_method_mgr = wlr_input_method_manager_v2_create(wl_display);
     wlr_presentation_create(wl_display, backend, 1);
     xdg_activation = wlr_xdg_activation_v1_create(wl_display);
 
@@ -830,6 +845,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wlr_xcursor_manager_load(cursor_mgr, 1.0f);
 
     seat = wlr_seat_create(wl_display, "seat0");
+    input_method_init(this);
 
     request_set_selection.notify = handle_request_set_selection;
     wl_signal_add(&seat->events.request_set_selection, &request_set_selection);
@@ -949,6 +965,7 @@ void Server::finish() {
             usleep(10000);
         }
 
+        input_method_finish(this);
         wl_display_destroy_clients(wl_display);
         wl_display_destroy(wl_display);
         wl_display = nullptr;
@@ -1103,6 +1120,7 @@ View *Server::focused_view() {
 void Server::focus_view(View *view, struct wlr_surface *surface) {
     if (!view || !view->wlr_surface() || !surface) {
         wlr_seat_keyboard_clear_focus(seat);
+        input_method_set_focus(this, nullptr);
         return;
     }
     struct wlr_surface *prev = seat->keyboard_state.focused_surface;
@@ -1121,13 +1139,18 @@ void Server::focus_view(View *view, struct wlr_surface *surface) {
     if (keyboard) {
         wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes,
                                        keyboard->num_keycodes, &keyboard->modifiers);
+        input_method_set_focus(this, surface);
     }
 }
 
 void Server::focus_top() {
     View *top = top_view();
-    if (top && top->wlr_surface()) focus_view(top, top->wlr_surface());
-    else wlr_seat_keyboard_clear_focus(seat);
+    if (top && top->wlr_surface()) {
+        focus_view(top, top->wlr_surface());
+    } else {
+        wlr_seat_keyboard_clear_focus(seat);
+        input_method_set_focus(this, nullptr);
+    }
 }
 
 void Server::update_visibility() {

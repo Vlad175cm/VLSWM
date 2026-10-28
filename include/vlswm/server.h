@@ -15,6 +15,8 @@
 
 struct View;
 struct Launcher;
+struct TextInput;
+struct InputPopup;
 
 struct Output {
     struct wlr_output *wlr_output;
@@ -111,6 +113,13 @@ struct Server {
     struct wlr_keyboard *keyboard = nullptr;
     struct wlr_input_device *pointer_device = nullptr;
 
+    struct wlr_text_input_manager_v3 *text_input_mgr = nullptr;
+    struct wlr_input_method_manager_v2 *input_method_mgr = nullptr;
+    struct wlr_input_method_v2 *input_method = nullptr;
+    struct wlr_input_method_keyboard_grab_v2 *keyboard_grab = nullptr;
+    std::vector<TextInput *> text_inputs;
+    std::vector<InputPopup *> input_popups;
+
     std::vector<View *> stack;
     std::vector<Output *> outputs;
     Launcher *launcher = nullptr;
@@ -137,6 +146,13 @@ struct Server {
     struct wl_listener request_set_primary_selection = {};
     struct wl_listener request_start_drag = {};
     struct wl_listener request_activate = {};
+    struct wl_listener new_text_input = {};
+    struct wl_listener new_input_method = {};
+    struct wl_listener im_commit = {};
+    struct wl_listener im_grab_keyboard = {};
+    struct wl_listener im_new_popup = {};
+    struct wl_listener im_destroy = {};
+    struct wl_listener grab_destroy = {};
 
     bool init(std::unique_ptr<IniConfig> cfg);
     void run();

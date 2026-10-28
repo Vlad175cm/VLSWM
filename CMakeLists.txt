@@ -41,7 +41,7 @@ if(_wlr_proto_dir)
 endif()
 
 set(VLSWM_COMPAT_DIR ${CMAKE_BINARY_DIR}/compat)
-foreach(hdr wlr/types/wlr_scene.h wlr/render/color.h)
+foreach(hdr wlr/types/wlr_scene.h wlr/render/color.h wlr/types/wlr_input_method_v2.h)
     set(src "")
     foreach(inc ${WLROOTS_INCLUDE_DIRS})
         if(EXISTS ${inc}/${hdr})
@@ -52,6 +52,9 @@ foreach(hdr wlr/types/wlr_scene.h wlr/render/color.h)
     if(src)
         file(READ ${src} content)
         string(REGEX REPLACE "\\[static ([0-9]+)\\]" "[\\1]" patched "${content}")
+        if(hdr STREQUAL "wlr/types/wlr_input_method_v2.h")
+            string(REPLACE " delete;" " delete_surrounding_text;" patched "${patched}")
+        endif()
         if(NOT patched STREQUAL content)
             get_filename_component(dir ${hdr} DIRECTORY)
             file(MAKE_DIRECTORY ${VLSWM_COMPAT_DIR}/${dir})
@@ -116,6 +119,7 @@ add_executable(vlswm
     src/view.cpp
     src/launcher.cpp
     src/theme.cpp
+    src/input_method.cpp
     src/ini.cpp
     src/animation.cpp
 )
