@@ -65,6 +65,7 @@ window-padding-y = 6
 window-padding-balance = true
 # Maximized windows drop the title bar; windowed ones keep it draggable.
 gtk-titlebar-hide-when-maximized = true
+gtk-single-instance = false
 
 # ── Split UI: the only other grays in the theme ───────────────────────
 split-divider-color = #333333

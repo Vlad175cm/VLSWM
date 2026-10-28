@@ -191,13 +191,14 @@ void Server::start_terminal() {
         if (v->terminal) return;
     }
     if (settings.terminal.empty()) return;
-    pid_t pid = spawn_argv({"/usr/bin/env", "VLSWM_BASE_TERM=1", settings.terminal});
+    pid_t pid = spawn_argv({"/usr/bin/env", "VLSWM_BASE_TERM=1", settings.terminal,
+                            "--gtk-single-instance=false"});
     if (pid > 0) base_pid = pid;
 }
 
 void Server::spawn_new_terminal() {
     if (settings.terminal.empty()) return;
-    spawn_argv({settings.terminal});
+    spawn_argv({settings.terminal, "--gtk-single-instance=false"});
 }
 
 void Server::terminal_gone() {
