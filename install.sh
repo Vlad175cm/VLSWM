@@ -206,7 +206,8 @@ main() {
     chown "$REAL_USER:$REAL_USER" "$FISH_CONF_DIR/vlswmstat.fish.backup"
   fi
   cat > "$FISH_CONF_DIR/vlswmstat.fish" <<'FISHEOF'
-if status is-interactive; and test -t 1
+if status is-interactive; and test -t 1; and set -q VLSWM_BASE_TERM
+    set -e VLSWM_BASE_TERM
     command -q vlswmstat; and vlswmstat
 end
 FISHEOF

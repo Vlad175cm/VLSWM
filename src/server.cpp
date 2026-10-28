@@ -204,8 +204,14 @@ void Server::start_terminal() {
         if (v->terminal) return;
     }
     if (settings.terminal.empty()) return;
-    pid_t pid = spawn_argv({settings.terminal});
+    pid_t pid = spawn_argv({"/usr/bin/env", "VLSWM_BASE_TERM=1", settings.terminal});
     if (pid > 0) base_pid = pid;
+}
+
+void Server::spawn_new_terminal() {
+    if (settings.terminal.empty()) return;
+    pid_t pid = spawn_argv({settings.terminal});
+    if (pid > 0) extra_terminals.push_back(pid);
 }
 
 void Server::terminal_gone() {
@@ -1010,6 +1016,7 @@ void Server::load_bindings() {
         std::string cmd;
         if (action == "launcher") type = BindAction::Launcher;
         else if (action == "file_manager") type = BindAction::FileManager;
+        else if (action == "terminal") type = BindAction::NewTerminal;
         else if (action == "restart_terminal") type = BindAction::RestartTerminal;
         else if (action == "close") type = BindAction::Close;
         else if (action == "reload") type = BindAction::Reload;
@@ -1060,6 +1067,7 @@ void Server::run_action(int idx) {
         case BindAction::Theme: set_theme(!theme_white); break;
         case BindAction::Launcher: launcher->toggle(); break;
         case BindAction::FileManager: spawn_file_manager(); break;
+        case BindAction::NewTerminal: spawn_new_terminal(); break;
         case BindAction::RestartTerminal: restart_terminal(); break;
         case BindAction::Spawn: spawn(b.cmd); break;
     }

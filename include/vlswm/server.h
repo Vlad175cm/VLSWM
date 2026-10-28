@@ -49,6 +49,7 @@ enum class BindAction {
     Theme,
     Launcher,
     FileManager,
+    NewTerminal,
     RestartTerminal,
     Spawn,
 };
@@ -155,6 +156,7 @@ struct Server {
     pid_t spawn_terminal_command(const std::string &cmd);
     bool take_extra_terminal(pid_t pid);
     void start_terminal();
+    void spawn_new_terminal();
     void terminal_gone();
     void start_satellite();
     void ghostty_setup_theme();
