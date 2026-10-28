@@ -122,20 +122,20 @@ struct Server {
     struct wl_event_source *repeat_timer = nullptr;
     std::vector<pid_t> children;
 
-    struct wl_listener new_output;
-    struct wl_listener new_input;
-    struct wl_listener new_xdg_surface;
-    struct wl_listener new_layer_surface;
-    struct wl_listener new_decoration;
-    struct wl_listener cursor_motion;
-    struct wl_listener cursor_motion_absolute;
-    struct wl_listener cursor_button;
-    struct wl_listener cursor_axis;
-    struct wl_listener cursor_frame;
-    struct wl_listener request_set_selection;
-    struct wl_listener request_set_primary_selection;
-    struct wl_listener request_start_drag;
-    struct wl_listener request_activate;
+    struct wl_listener new_output = {};
+    struct wl_listener new_input = {};
+    struct wl_listener new_xdg_surface = {};
+    struct wl_listener new_layer_surface = {};
+    struct wl_listener new_decoration = {};
+    struct wl_listener cursor_motion = {};
+    struct wl_listener cursor_motion_absolute = {};
+    struct wl_listener cursor_button = {};
+    struct wl_listener cursor_axis = {};
+    struct wl_listener cursor_frame = {};
+    struct wl_listener request_set_selection = {};
+    struct wl_listener request_set_primary_selection = {};
+    struct wl_listener request_start_drag = {};
+    struct wl_listener request_activate = {};
 
     bool init(std::unique_ptr<IniConfig> cfg);
     void run();

@@ -886,22 +886,28 @@ void Server::run() {
     wl_display_run(wl_display);
 }
 
+static void drop_listener(struct wl_listener *listener) {
+    if (listener->link.prev && listener->link.next) {
+        wl_list_remove(&listener->link);
+    }
+}
+
 void Server::finish() {
     if (wl_display) {
-        wl_list_remove(&new_output.link);
-        wl_list_remove(&new_input.link);
-        wl_list_remove(&new_xdg_surface.link);
-        wl_list_remove(&new_layer_surface.link);
-        wl_list_remove(&new_decoration.link);
-        wl_list_remove(&cursor_motion.link);
-        wl_list_remove(&cursor_motion_absolute.link);
-        wl_list_remove(&cursor_button.link);
-        wl_list_remove(&cursor_axis.link);
-        wl_list_remove(&cursor_frame.link);
-        wl_list_remove(&request_set_selection.link);
-        wl_list_remove(&request_set_primary_selection.link);
-        wl_list_remove(&request_start_drag.link);
-        if (xdg_activation) wl_list_remove(&request_activate.link);
+        drop_listener(&new_output);
+        drop_listener(&new_input);
+        drop_listener(&new_xdg_surface);
+        drop_listener(&new_layer_surface);
+        drop_listener(&new_decoration);
+        drop_listener(&cursor_motion);
+        drop_listener(&cursor_motion_absolute);
+        drop_listener(&cursor_button);
+        drop_listener(&cursor_axis);
+        drop_listener(&cursor_frame);
+        drop_listener(&request_set_selection);
+        drop_listener(&request_set_primary_selection);
+        drop_listener(&request_start_drag);
+        drop_listener(&request_activate);
         if (repeat_timer) {
             wl_event_source_remove(repeat_timer);
             repeat_timer = nullptr;
