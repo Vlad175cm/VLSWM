@@ -1143,8 +1143,9 @@ void Server::restart_terminal() {
 }
 
 void Server::close_top() {
-    View *top = top_view();
-    if (top) close_view(top);
+    View *view = focused_view();
+    if (!view) view = top_view();
+    if (view) close_view(view);
 }
 
 void Server::close_view(View *view) {
