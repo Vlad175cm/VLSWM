@@ -19,6 +19,9 @@ struct View {
     pid_t pid = 0;
     bool initial_configured = false;
     FadeAnim fade;
+    FadeAnim slide;
+    float opacity = 1.0f;
+    float slide_y = 0.0f;
 
     struct wl_listener map;
     struct wl_listener unmap;

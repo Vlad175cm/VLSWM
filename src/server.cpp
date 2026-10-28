@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
@@ -1135,16 +1136,21 @@ void Server::focus_top() {
 
 void Server::update_visibility() {
     bool active_shown = false;
+    bool show_below = false;
     for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
         View *v = *it;
         bool show = false;
-        if (!active_shown) {
-            if (!v->closing) {
+        if (!v->closing) {
+            if (!active_shown) {
                 show = true;
                 active_shown = true;
-            } else if (v->fade.active) {
+                show_below = v->fade.active;
+            } else if (show_below) {
                 show = true;
+                show_below = false;
             }
+        } else if (!active_shown && v->fade.active) {
+            show = true;
         }
         wlr_scene_node_set_enabled(&v->scene_tree->node, show);
     }
@@ -1205,7 +1211,8 @@ void Server::close_view(View *view) {
     if (seat->keyboard_state.focused_surface == view->wlr_surface()) {
         wlr_seat_keyboard_clear_focus(seat);
     }
-    view->fade.begin(anim_now_ns(), settings.duration_ns, settings.easing, 1.0f, 0.0f);
+    view->fade.begin(anim_now_ns(), settings.duration_ns, settings.easing, view->opacity, 0.0f);
+    view->slide.begin(anim_now_ns(), settings.duration_ns, settings.easing, view->slide_y, -10.0f);
     update_visibility();
     request_frame();
 }
@@ -1251,7 +1258,7 @@ void Server::request_frame() {
 bool Server::animations_running() const {
     if (launcher && launcher->busy()) return true;
     for (auto *v : stack) {
-        if (v->fade.active) return true;
+        if (v->fade.active || v->slide.active) return true;
     }
     return false;
 }
@@ -1261,15 +1268,22 @@ void Server::animate(uint64_t now) {
 
     for (size_t i = 0; i < stack.size(); i++) {
         View *v = stack[i];
+        if (v->slide.active) {
+            v->slide.step(now, &v->slide_y);
+            wlr_scene_node_set_position(&v->scene_tree->node, 0, (int)std::lround(v->slide_y));
+        }
         if (!v->fade.active) continue;
         float o = 1.0f;
         bool done = v->fade.step(now, &o);
+        v->opacity = o;
         v->set_opacity(o);
         if (done && v->closing) {
             wlr_scene_node_set_enabled(&v->scene_tree->node, false);
             if (v->xdg_surface && v->xdg_surface->toplevel) {
                 wlr_xdg_toplevel_send_close(v->xdg_surface->toplevel);
             }
+        } else if (done) {
+            update_visibility();
         }
     }
 }

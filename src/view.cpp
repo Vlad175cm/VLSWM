@@ -81,7 +81,12 @@ void View::xdg_map(wl_listener *listener, void *data) {
     view->configure_size();
     server->stack.push_back(view);
     view->set_opacity(0.0f);
-    view->fade.begin(anim_now_ns(), server->settings.duration_ns, server->settings.easing, 0.0f, 1.0f);
+    view->opacity = 0.0f;
+    view->slide_y = 14.0f;
+    wlr_scene_node_set_position(&view->scene_tree->node, 0, 14);
+    uint64_t now = anim_now_ns();
+    view->fade.begin(now, server->settings.duration_ns, server->settings.easing, 0.0f, 1.0f);
+    view->slide.begin(now, server->settings.duration_ns, server->settings.easing, 14.0f, 0.0f);
     server->focus_view(view, view->wlr_surface());
     server->update_visibility();
     server->request_frame();
