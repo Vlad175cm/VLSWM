@@ -29,6 +29,26 @@ endif()
 set(WLR_PROTOCOLS_DATADIR "${WLR_PROTOCOLS_DATADIR}" CACHE PATH
     "Directory with wlr-protocols XML files")
 
+set(VLSWM_COMPAT_DIR ${CMAKE_BINARY_DIR}/compat)
+foreach(hdr wlr/types/wlr_scene.h wlr/render/color.h)
+    set(src "")
+    foreach(inc ${WLROOTS_INCLUDE_DIRS})
+        if(EXISTS ${inc}/${hdr})
+            set(src ${inc}/${hdr})
+            break()
+        endif()
+    endforeach()
+    if(src)
+        file(READ ${src} content)
+        string(REGEX REPLACE "\\[static ([0-9]+)\\]" "[\\1]" patched "${content}")
+        if(NOT patched STREQUAL content)
+            get_filename_component(dir ${hdr} DIRECTORY)
+            file(MAKE_DIRECTORY ${VLSWM_COMPAT_DIR}/${dir})
+            file(WRITE ${VLSWM_COMPAT_DIR}/${hdr} "${patched}")
+        endif()
+    endif()
+endforeach()
+
 set(VLSWM_PROTOCOL_DIR ${CMAKE_BINARY_DIR}/protocols)
 file(MAKE_DIRECTORY ${VLSWM_PROTOCOL_DIR})
 
@@ -73,6 +93,7 @@ add_dependencies(vlswm vlswm-protocols)
 
 target_include_directories(vlswm PRIVATE
     ${CMAKE_SOURCE_DIR}/include
+    ${VLSWM_COMPAT_DIR}
     ${VLSWM_PROTOCOL_DIR}
     ${WAYLAND_INCLUDE_DIRS}
     ${WLROOTS_INCLUDE_DIRS}
