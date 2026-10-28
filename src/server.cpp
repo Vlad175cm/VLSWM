@@ -942,10 +942,10 @@ void Server::load_settings() {
     settings.layout = config->get("input", "layout", "us,ru");
     settings.layout_options = config->get("input", "layout_options", "grp:win_space_toggle");
     try {
-        settings.scroll_speed = std::clamp(std::stod(config->get("input", "scroll_speed", "0.7")),
+        settings.scroll_speed = std::clamp(std::stod(config->get("input", "scroll_speed", "0.5")),
                                            0.1, 2.0);
     } catch (...) {
-        settings.scroll_speed = 0.7;
+        settings.scroll_speed = 0.5;
     }
     settings.terminal = config->get("launcher", "terminal", "ghostty");
     settings.file_manager = config->get("launcher", "file_manager", "yazi");
@@ -1058,7 +1058,10 @@ void Server::run_action(int idx) {
 }
 
 View *Server::top_view() {
-    return stack.empty() ? nullptr : stack.back();
+    for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
+        if (!(*it)->closing) return *it;
+    }
+    return nullptr;
 }
 
 View *Server::focused_view() {
@@ -1102,18 +1105,24 @@ void Server::focus_top() {
 }
 
 void Server::update_visibility() {
-    size_t n = stack.size();
-    for (size_t i = 0; i < n; i++) {
-        bool top = i + 1 == n;
-        bool under_closing = i + 2 == n && stack[n - 1]->closing;
-        wlr_scene_node_set_enabled(&stack[i]->scene_tree->node, top || under_closing);
+    bool active_shown = false;
+    for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
+        View *v = *it;
+        bool show = false;
+        if (!active_shown) {
+            show = true;
+            if (!v->closing) active_shown = true;
+        }
+        wlr_scene_node_set_enabled(&v->scene_tree->node, show);
     }
 }
 
 void Server::cycle_next() {
-    if (stack.size() < 2 || stack.back()->closing) return;
-    View *top = stack.back();
-    stack.pop_back();
+    View *top = top_view();
+    if (!top || stack.size() < 2) return;
+    auto it = std::find(stack.begin(), stack.end(), top);
+    if (it == stack.end()) return;
+    stack.erase(it);
     stack.insert(stack.begin(), top);
     focus_top();
     update_visibility();
@@ -1121,9 +1130,17 @@ void Server::cycle_next() {
 }
 
 void Server::cycle_prev() {
-    if (stack.size() < 2 || stack.back()->closing) return;
-    View *bottom = stack.front();
-    stack.erase(stack.begin());
+    View *bottom = nullptr;
+    for (auto *v : stack) {
+        if (!v->closing) {
+            bottom = v;
+            break;
+        }
+    }
+    if (!bottom || stack.size() < 2) return;
+    auto it = std::find(stack.begin(), stack.end(), bottom);
+    if (it == stack.end()) return;
+    stack.erase(it);
     stack.push_back(bottom);
     focus_top();
     update_visibility();
@@ -1168,7 +1185,9 @@ void Server::set_theme(bool white) {
     launcher->relayout();
     if (!theme_base.empty()) {
         theme_write(settings.ghostty_dir, theme_base, white);
-        if (base_pid > 0) kill(base_pid, SIGUSR2);
+        for (auto *v : stack) {
+            if (v->ghostty && v->pid > 0) kill(v->pid, SIGUSR2);
+        }
     }
     request_frame();
 }

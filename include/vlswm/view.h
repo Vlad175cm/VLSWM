@@ -3,6 +3,8 @@
 #include "vlswm/wlroots.h"
 #include "vlswm/animation.h"
 
+#include <sys/types.h>
+
 struct Server;
 
 struct View {
@@ -13,6 +15,8 @@ struct View {
     bool mapped = false;
     bool closing = false;
     bool terminal = false;
+    bool ghostty = false;
+    pid_t pid = 0;
     bool initial_configured = false;
     FadeAnim fade;
 

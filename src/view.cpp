@@ -64,6 +64,8 @@ void View::xdg_map(wl_listener *listener, void *data) {
         pid_t pid = 0;
         wl_client_get_credentials(wl_resource_get_client(view->xdg_surface->resource),
                                   &pid, nullptr, nullptr);
+        view->ghostty = true;
+        view->pid = pid;
 
         bool base_alive = false;
         for (auto *v : server->stack) {
