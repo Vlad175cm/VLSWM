@@ -322,11 +322,15 @@ static void keyboard_handle_modifiers(wl_listener *listener, void *data) {
 static void keyboard_handle_destroy(wl_listener *listener, void *data) {
     Keyboard *kb = wl_container_of(listener, kb, destroy);
     (void)data;
+    struct wlr_keyboard *keyboard = wlr_keyboard_from_input_device(kb->device);
     wl_list_remove(&kb->modifiers.link);
     wl_list_remove(&kb->key.link);
     wl_list_remove(&kb->destroy.link);
-    if (kb->server->keyboard == wlr_keyboard_from_input_device(kb->device)) {
+    if (kb->server->keyboard == keyboard) {
         kb->server->keyboard = nullptr;
+    }
+    if (kb->server->seat && wlr_seat_get_keyboard(kb->server->seat) == keyboard) {
+        wlr_seat_set_keyboard(kb->server->seat, kb->server->keyboard);
     }
     delete kb;
 }
@@ -1251,6 +1255,7 @@ void Server::close_view(View *view) {
     view->closing = true;
     if (seat->keyboard_state.focused_surface == view->wlr_surface()) {
         wlr_seat_keyboard_clear_focus(seat);
+        input_method_set_focus(this, nullptr);
     }
     view->fade.begin(anim_now_ns(), settings.duration_ns, settings.easing, 1.0f, 0.0f);
     update_visibility();
