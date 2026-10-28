@@ -113,6 +113,7 @@ static std::string strip_field_codes(const std::string &exec) {
             char c = exec[i + 1];
             if (c == '%') {
                 out += '%';
+                i++;
             } else if (strchr("fFuUdDnNickvm", c)) {
                 i++;
                 continue;

@@ -160,7 +160,8 @@ static int on_respawn_timer(void *data) {
 static int on_repeat_timer(void *data) {
     Server *server = (Server *)data;
     const Repeat &r = server->repeat;
-    if (r.kind == RepeatKind::Binding && r.binding >= 0) {
+    if (r.kind == RepeatKind::Binding && r.binding >= 0 &&
+        r.binding < (int)server->bindings.size()) {
         server->run_action(r.binding);
     } else if (r.kind == RepeatKind::LauncherKey && server->launcher->open) {
         server->launcher->key(r.sym, r.utf8);
@@ -186,19 +187,28 @@ void Server::stop_repeat(uint32_t keycode) {
     if (repeat_timer) wl_event_source_timer_update(repeat_timer, 0);
 }
 
+static bool is_ghostty(const std::string &cmd) {
+    size_t slash = cmd.find_last_of('/');
+    std::string base = slash == std::string::npos ? cmd : cmd.substr(slash + 1);
+    return lower(base) == "ghostty";
+}
+
 void Server::start_terminal() {
     for (auto *v : stack) {
         if (v->terminal) return;
     }
     if (settings.terminal.empty()) return;
-    pid_t pid = spawn_argv({"/usr/bin/env", "VLSWM_BASE_TERM=1", settings.terminal,
-                            "--gtk-single-instance=false"});
+    std::vector<std::string> argv = {"/usr/bin/env", "VLSWM_BASE_TERM=1", settings.terminal};
+    if (is_ghostty(settings.terminal)) argv.push_back("--gtk-single-instance=false");
+    pid_t pid = spawn_argv(argv);
     if (pid > 0) base_pid = pid;
 }
 
 void Server::spawn_new_terminal() {
     if (settings.terminal.empty()) return;
-    spawn_argv({settings.terminal, "--gtk-single-instance=false"});
+    std::vector<std::string> argv = {settings.terminal};
+    if (is_ghostty(settings.terminal)) argv.push_back("--gtk-single-instance=false");
+    spawn_argv(argv);
 }
 
 void Server::terminal_gone() {
@@ -319,11 +329,21 @@ static void server_new_keyboard(Server *server, struct wlr_input_device *device)
     names.layout = server->settings.layout.empty() ? nullptr : server->settings.layout.c_str();
     names.options = server->settings.layout_options.empty() ? nullptr
                                                             : server->settings.layout_options.c_str();
-    struct xkb_keymap *keymap =
-        xkb_keymap_new_from_names(context, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
-    wlr_keyboard_set_keymap(keyboard, keymap);
-    xkb_keymap_unref(keymap);
-    xkb_context_unref(context);
+    struct xkb_keymap *keymap = context
+        ? xkb_keymap_new_from_names(context, &names, XKB_KEYMAP_COMPILE_NO_FLAGS)
+        : nullptr;
+    if (!keymap && context) {
+        wlr_log(WLR_ERROR, "invalid keyboard layout '%s', falling back to default",
+                server->settings.layout.c_str());
+        keymap = xkb_keymap_new_from_names(context, nullptr, XKB_KEYMAP_COMPILE_NO_FLAGS);
+    }
+    if (keymap) {
+        wlr_keyboard_set_keymap(keyboard, keymap);
+        xkb_keymap_unref(keymap);
+    } else {
+        wlr_log(WLR_ERROR, "cannot compile a keyboard keymap");
+    }
+    if (context) xkb_context_unref(context);
 
     wlr_keyboard_set_repeat_info(keyboard, server->settings.repeat_rate,
                                  server->settings.repeat_delay);
@@ -1046,6 +1066,7 @@ int Server::find_binding(xkb_keysym_t sym, uint32_t mods) const {
 }
 
 void Server::run_action(int idx) {
+    if (idx < 0 || idx >= (int)bindings.size()) return;
     const Binding &b = bindings[idx];
     switch (b.action) {
         case BindAction::Close: close_top(); break;
@@ -1208,6 +1229,7 @@ void Server::reload_config() {
     load_settings();
     load_bindings();
     apply_repeat_settings(this);
+    ghostty_setup_theme();
     set_theme(theme_white);
     launcher->relayout();
     configure_all();

@@ -2,6 +2,7 @@
 #include "vlswm/theme.h"
 
 
+#include <cctype>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -76,8 +77,10 @@ std::string theme_invert(const std::string &hex) {
     if (hex.size() != 7 || hex[0] != '#') return hex;
     unsigned int rgb[3];
     for (int i = 0; i < 3; i++) {
-        std::string part = hex.substr(1 + i * 2, 2);
-        rgb[i] = (unsigned int)std::stoul(part, nullptr, 16);
+        for (int j = 0; j < 2; j++) {
+            if (!isxdigit((unsigned char)hex[1 + i * 2 + j])) return hex;
+        }
+        rgb[i] = (unsigned int)std::stoul(hex.substr(1 + i * 2, 2), nullptr, 16);
     }
     char out[8];
     std::snprintf(out, sizeof(out), "#%02x%02x%02x", 255 - rgb[0], 255 - rgb[1], 255 - rgb[2]);
