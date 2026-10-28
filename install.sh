@@ -243,7 +243,7 @@ FISHEOF
   echo ""
   echo -e "${YELLOW}Key bindings (defaults):${NC}"
   echo -e "  SUPER+D         - Launcher (type a command, Enter runs it in fish)"
-  echo -e "  SUPER+Q         - Close the top window (the terminal cannot be closed)"
+  echo -e "  SUPER+Q         - Close the focused window (the terminal cannot be closed)"
   echo -e "  SUPER+LEFT/RIGHT- Switch windows"
   echo -e "  SUPER+T         - Toggle black / white theme (also recolors Ghostty)"
   echo -e "  SUPER+R         - Reload config"

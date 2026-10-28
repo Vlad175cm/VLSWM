@@ -106,6 +106,7 @@ struct Server {
     struct wlr_cursor *cursor = nullptr;
     struct wlr_xcursor_manager *cursor_mgr = nullptr;
     struct wlr_output_layout *output_layout = nullptr;
+    struct wlr_scene_output_layout *scene_output_layout = nullptr;
 
     struct wlr_keyboard *keyboard = nullptr;
     struct wlr_input_device *pointer_device = nullptr;

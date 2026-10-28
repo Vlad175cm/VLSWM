@@ -20,7 +20,7 @@ font-size = 14
 # ── Core colors: black background, white text ─────────────────────────
 background = #000000
 foreground = #ffffff
-background-opacity = 0.5
+# background-opacity = 1.0
 
 # ── ANSI 0-15 ─────────────────────────────────────────────────────────
 # Anything a program colors is forced to pure white; black stays black.

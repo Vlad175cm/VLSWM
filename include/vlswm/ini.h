@@ -14,7 +14,6 @@ struct IniConfig {
     std::string get(const std::string &section, const std::string &key,
                     const std::string &def = "") const;
     int get_int(const std::string &section, const std::string &key, int def) const;
-    bool get_bool(const std::string &section, const std::string &key, bool def) const;
 
     const std::string &path() const { return path_; }
 

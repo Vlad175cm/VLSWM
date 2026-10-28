@@ -81,11 +81,3 @@ int IniConfig::get_int(const std::string &section, const std::string &key, int d
         return def;
     }
 }
-
-bool IniConfig::get_bool(const std::string &section, const std::string &key, bool def) const {
-    std::string v = get(section, key);
-    if (v.empty()) return def;
-    if (v == "true" || v == "yes" || v == "1" || v == "on") return true;
-    if (v == "false" || v == "no" || v == "0" || v == "off") return false;
-    return def;
-}

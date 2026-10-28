@@ -389,9 +389,8 @@ static void handle_new_output(wl_listener *listener, void *data) {
 
     wlr_output_layout_add_auto(server->output_layout, wlr_output);
     wlr_scene_output_layout_add_output(
-        wlr_scene_attach_output_layout(server->scene, server->output_layout),
+        server->scene_output_layout,
         wlr_output_layout_get(server->output_layout, wlr_output), output->scene_output);
-    wlr_cursor_attach_output_layout(server->cursor, server->output_layout);
 
     int w = 0, h = 0;
     wlr_output_effective_resolution(wlr_output, &w, &h);
@@ -658,10 +657,15 @@ static void handle_request_activate(wl_listener *listener, void *data) {
         (struct wlr_xdg_activation_v1_request_activate_event *)data;
     if (!event->token || !event->surface) return;
     for (auto *v : server->stack) {
-        if (v->wlr_surface() == event->surface) {
-            server->focus_view(v, event->surface);
-            return;
+        if (v->closing || v->wlr_surface() != event->surface) continue;
+        if (v != server->stack.back()) {
+            server->stack.erase(std::find(server->stack.begin(), server->stack.end(), v));
+            server->stack.push_back(v);
         }
+        server->focus_view(v, event->surface);
+        server->update_visibility();
+        server->request_frame();
+        return;
     }
 }
 
@@ -790,6 +794,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wlr_xdg_output_manager_v1_create(wl_display, output_layout);
 
     scene = wlr_scene_create();
+    scene_output_layout = wlr_scene_attach_output_layout(scene, output_layout);
     scene_background = wlr_scene_tree_create(&scene->tree);
     background = wlr_scene_rect_create(scene_background, 1, 1, black);
     scene_apps = wlr_scene_tree_create(&scene->tree);
@@ -1110,8 +1115,12 @@ void Server::update_visibility() {
         View *v = *it;
         bool show = false;
         if (!active_shown) {
-            show = true;
-            if (!v->closing) active_shown = true;
+            if (!v->closing) {
+                show = true;
+                active_shown = true;
+            } else if (v->fade.active) {
+                show = true;
+            }
         }
         wlr_scene_node_set_enabled(&v->scene_tree->node, show);
     }
@@ -1231,8 +1240,11 @@ void Server::animate(uint64_t now) {
         float o = 1.0f;
         bool done = v->fade.step(now, &o);
         v->set_opacity(o);
-        if (done && v->closing && v->xdg_surface && v->xdg_surface->toplevel) {
-            wlr_xdg_toplevel_send_close(v->xdg_surface->toplevel);
+        if (done && v->closing) {
+            wlr_scene_node_set_enabled(&v->scene_tree->node, false);
+            if (v->xdg_surface && v->xdg_surface->toplevel) {
+                wlr_xdg_toplevel_send_close(v->xdg_surface->toplevel);
+            }
         }
     }
 }
