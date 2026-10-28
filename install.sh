@@ -162,10 +162,12 @@ main() {
     fi
   fi
 
-  echo -e "${GREEN}[3/7]${NC} Installing vlswm binary to $INSTALL_DIR..."
+  echo -e "${GREEN}[3/7]${NC} Installing binaries to $INSTALL_DIR..."
   cp "$SCRIPT_DIR/build/vlswm" "$INSTALL_DIR/vlswm"
-  chmod +x "$INSTALL_DIR/vlswm"
+  cp "$SCRIPT_DIR/build/vlswmstat" "$INSTALL_DIR/vlswmstat"
+  chmod +x "$INSTALL_DIR/vlswm" "$INSTALL_DIR/vlswmstat"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm"
+  echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswmstat"
 
   echo -e "${GREEN}[4/7]${NC} Installing configuration to $CONFIG_DIR..."
   sudo -u "$REAL_USER" mkdir -p "$CONFIG_DIR"
@@ -196,6 +198,20 @@ main() {
   echo -e "  ${GREEN}✓${NC} Installed: $GHOSTTY_DIR/palette-bw.ghostty"
   echo -e "  ${GREEN}✓${NC} Installed: $GHOSTTY_DIR/cursor-trail.conf"
   echo -e "  ${GREEN}✓${NC} Installed: $GHOSTTY_DIR/shaders/cursor-trail.glsl"
+
+  FISH_CONF_DIR="$REAL_HOME/.config/fish/conf.d"
+  sudo -u "$REAL_USER" mkdir -p "$FISH_CONF_DIR"
+  if [ -f "$FISH_CONF_DIR/vlswmstat.fish" ]; then
+    cp "$FISH_CONF_DIR/vlswmstat.fish" "$FISH_CONF_DIR/vlswmstat.fish.backup"
+    chown "$REAL_USER:$REAL_USER" "$FISH_CONF_DIR/vlswmstat.fish.backup"
+  fi
+  cat > "$FISH_CONF_DIR/vlswmstat.fish" <<'FISHEOF'
+if status is-interactive; and test -t 1
+    command -q vlswmstat; and vlswmstat
+end
+FISHEOF
+  chown "$REAL_USER:$REAL_USER" "$FISH_CONF_DIR/vlswmstat.fish"
+  echo -e "  ${GREEN}✓${NC} Installed: $FISH_CONF_DIR/vlswmstat.fish"
 
   echo -e "${GREEN}[6/7]${NC} Creating SDDM session in $SDDM_DIR..."
   mkdir -p "$SDDM_DIR"

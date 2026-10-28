@@ -106,6 +106,20 @@ vlswm читает цвета из вашего `config.ghostty` (и из под
 
 В этот же файл добавляется `app-notifications = no-config-reload`, поэтому Ghostty не показывает уведомление при перечитывании конфига.
 
+## vlswmstat
+
+`vlswmstat` — компактный монохромный дашборд: hostname, дистрибутив, ядро, uptime, shell, терминал, CPU, память, диски, сеть, датчики, батарея и данные VLSWM. Большие часы и дата обновляются каждую секунду.
+
+```bash
+vlswmstat           # живой дашборд, выход по q или Esc
+vlswmstat --once    # один кадр и выход
+vlswmstat --version
+```
+
+Клавиши: `q` / `Esc` — выход, `r` — обновить, изменение размера окна подхватывается автоматически.
+
+При установке `install.sh` добавляет `~/.config/fish/conf.d/vlswmstat.fish`, поэтому дашборд показывается при старте интерактивного fish как приветствие. Чтобы отключить, закомментируйте строку `vlswmstat` в этом файле.
+
 ## Клавиши по умолчанию
 
 | Клавиши | Действие |
@@ -129,6 +143,7 @@ vlswm читает цвета из вашего `config.ghostty` (и из под
 - `src/view.cpp` — окна (xdg), открытие и закрытие.
 - `src/launcher.cpp` — лаунчер (cairo + pango).
 - `src/theme.cpp` — тема Ghostty.
+- `src/vlswmstat.cpp` — дашборд `vlswmstat`.
 - `src/output.cpp`, `src/ini.cpp`, `src/animation.cpp` — выход, конфиг, анимации.
 
 ## Лицензия

@@ -105,6 +105,10 @@ endforeach()
 
 add_custom_target(vlswm-protocols DEPENDS ${VLSWM_PROTOCOL_HEADERS})
 
+add_executable(vlswmstat src/vlswmstat.cpp)
+target_compile_definitions(vlswmstat PRIVATE VLSWM_VERSION="${PROJECT_VERSION}")
+target_compile_options(vlswmstat PRIVATE -Wall -Wextra)
+
 add_executable(vlswm
     src/main.cpp
     src/server.cpp
