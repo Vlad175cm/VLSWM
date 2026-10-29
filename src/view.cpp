@@ -5,8 +5,6 @@
 
 #include <cstring>
 
-static const char *GHOSTTY_APP_ID = "com.mitchellh.ghostty";
-
 static void set_tree_opacity(struct wlr_scene_node *node, float o) {
     if (node->type == WLR_SCENE_NODE_BUFFER) {
         wlr_scene_buffer_set_opacity(wlr_scene_buffer_from_node(node), o);
@@ -63,13 +61,12 @@ void View::xdg_map(wl_listener *listener, void *data) {
     wl_client_get_credentials(wl_resource_get_client(view->xdg_surface->resource),
                               &pid, nullptr, nullptr);
     view->pid = pid;
-    view->ghostty = app_id && strcmp(app_id, GHOSTTY_APP_ID) == 0;
     view->foot = app_id && (strcmp(app_id, "foot") == 0 ||
                             strcmp(app_id, "footclient") == 0);
 
     if (server->base_pid > 0) {
         view->terminal = pid == server->base_pid;
-    } else if (view->foot || view->ghostty) {
+    } else if (view->foot) {
         bool base_alive = false;
         for (auto *v : server->stack) {
             if (v->terminal) base_alive = true;

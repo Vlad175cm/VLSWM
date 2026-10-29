@@ -5,10 +5,15 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <execinfo.h>
+#include <filesystem>
 #include <getopt.h>
 #include <signal.h>
 #include <string>
 #include <unistd.h>
+
+#ifndef VLSWM_VERSION
+#define VLSWM_VERSION "1.0.0"
+#endif
 
 static Server *g_server = nullptr;
 static FILE *g_logfile = nullptr;
@@ -36,8 +41,8 @@ static void open_logfile() {
         const char *home = std::getenv("HOME");
         dir = home ? std::string(home) + "/.local/state/vlswm" : "/tmp/vlswm";
     }
-    std::string cmd = "mkdir -p \"" + dir + "\"";
-    (void)system(cmd.c_str());
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
     g_logfile = std::fopen((dir + "/vlswm.log").c_str(), "a");
     if (g_logfile) {
         std::fprintf(g_logfile, "=== vlswm started (pid %d) ===\n", (int)getpid());
@@ -99,7 +104,7 @@ int main(int argc, char **argv) {
     while ((opt = getopt_long(argc, argv, "c:vh", long_opts, nullptr)) != -1) {
         switch (opt) {
             case 'c': config_path = optarg; break;
-            case 'v': std::fprintf(stdout, "vlswm 0.4.0\n"); return 0;
+            case 'v': std::fprintf(stdout, "vlswm %s\n", VLSWM_VERSION); return 0;
             case 'h': print_usage(argv[0]); return 0;
             default: print_usage(argv[0]); return 1;
         }

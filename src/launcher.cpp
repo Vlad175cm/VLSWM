@@ -329,10 +329,6 @@ Launcher::~Launcher() {
 
 void Launcher::init(Server *s) {
     server = s;
-    font_desc = pango_font_description_from_string(server->settings.font.c_str());
-    scan_apps();
-    render();
-    if (buf) wlr_scene_node_set_enabled(&buf->node, false);
 }
 
 bool Launcher::busy() const {
@@ -348,7 +344,13 @@ void Launcher::toggle() {
     input.clear();
     error.clear();
     error_until = 0;
-    if (apps.empty() || apps_changed()) scan_apps();
+    if (!initialized) {
+        initialized = true;
+        font_desc = pango_font_description_from_string(server->settings.font.c_str());
+        scan_apps();
+    } else if (apps.empty() || apps_changed()) {
+        scan_apps();
+    }
     render();
     if (buf) wlr_scene_node_set_enabled(&buf->node, true);
 
@@ -525,9 +527,16 @@ void Launcher::render() {
 }
 
 void Launcher::relayout() {
+    if (!initialized) return;
     if (font_desc) pango_font_description_free(font_desc);
     font_desc = pango_font_description_from_string(server->settings.font.c_str());
     render();
+}
+
+void Launcher::reload() {
+    if (!initialized) return;
+    scan_apps();
+    relayout();
 }
 
 void Launcher::animate(uint64_t now) {

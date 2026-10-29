@@ -40,7 +40,6 @@ font = "JetBrainsMono Nerd Font 16"
 duration = 0
 
 [theme]
-ghostty = "~/.config/ghostty"
 foot = "~/.config/foot"
 
 [animations]

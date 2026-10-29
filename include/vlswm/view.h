@@ -15,7 +15,6 @@ struct View {
     bool mapped = false;
     bool closing = false;
     bool terminal = false;
-    bool ghostty = false;
     bool foot = false;
     pid_t pid = 0;
     bool initial_configured = false;

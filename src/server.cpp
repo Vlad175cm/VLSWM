@@ -200,12 +200,6 @@ void Server::stop_repeat(uint32_t keycode) {
     if (repeat_timer) wl_event_source_timer_update(repeat_timer, 0);
 }
 
-static bool is_ghostty(const std::string &cmd) {
-    size_t slash = cmd.find_last_of('/');
-    std::string base = slash == std::string::npos ? cmd : cmd.substr(slash + 1);
-    return lower(base) == "ghostty";
-}
-
 static bool is_foot(const std::string &cmd) {
     size_t slash = cmd.find_last_of('/');
     std::string base = slash == std::string::npos ? cmd : cmd.substr(slash + 1);
@@ -226,7 +220,6 @@ void Server::start_terminal() {
     if (settings.terminal.empty()) return;
     std::vector<std::string> argv = {"/usr/bin/env", "VLSWM_BASE_TERM=1", settings.terminal};
     append_terminal_theme_args(this, argv);
-    if (is_ghostty(settings.terminal)) argv.push_back("--gtk-single-instance=false");
     pid_t pid = spawn_argv(argv);
     if (pid > 0) base_pid = pid;
 }
@@ -235,7 +228,6 @@ void Server::spawn_new_terminal() {
     if (settings.terminal.empty()) return;
     std::vector<std::string> argv = {settings.terminal};
     append_terminal_theme_args(this, argv);
-    if (is_ghostty(settings.terminal)) argv.push_back("--gtk-single-instance=false");
     spawn_argv(argv);
 }
 
@@ -842,7 +834,6 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wlr_content_type_manager_v1_create(wl_display, 1);
     wlr_single_pixel_buffer_manager_v1_create(wl_display);
     decoration_mgr = wlr_xdg_decoration_manager_v1_create(wl_display);
-    wlr_pointer_gestures_v1_create(wl_display);
     wlr_presentation_create(wl_display, backend, 1);
     xdg_activation = wlr_xdg_activation_v1_create(wl_display);
 
@@ -933,16 +924,6 @@ fail:
     return false;
 }
 
-void Server::ghostty_setup_theme() {
-    theme_base = theme_read_base(settings.ghostty_dir);
-    if (theme_base.empty()) {
-        wlr_log(WLR_ERROR, "theme: no ghostty colors found in '%s'", settings.ghostty_dir.c_str());
-        return;
-    }
-    theme_ensure_include(settings.ghostty_dir);
-    theme_write(settings.ghostty_dir, theme_base, theme_white);
-}
-
 static std::string state_dir() {
     const char *state = std::getenv("XDG_STATE_HOME");
     if (state && *state) return std::string(state) + "/vlswm";
@@ -967,11 +948,7 @@ void Server::foot_setup_theme() {
 }
 
 void Server::terminal_setup_theme() {
-    if (is_foot(settings.terminal)) {
-        foot_setup_theme();
-    } else if (is_ghostty(settings.terminal)) {
-        ghostty_setup_theme();
-    }
+    if (is_foot(settings.terminal)) foot_setup_theme();
     write_theme_state();
 }
 
@@ -1055,7 +1032,6 @@ void Server::load_settings() {
         (uint64_t)std::max(config->get_int("launcher", "duration", 0), 0) * 1000000ULL;
     settings.satellite = config->get("xwayland", "satellite", "xwayland-satellite");
     settings.satellite_display = config->get("xwayland", "display", ":1");
-    settings.ghostty_dir = expand_home(config->get("theme", "ghostty", "~/.config/ghostty"));
     settings.foot_dir = expand_home(config->get("theme", "foot", "~/.config/foot"));
 }
 
@@ -1067,7 +1043,7 @@ void Server::check_config() {
         "launcher.terminal", "launcher.file_manager", "launcher.font",
         "launcher.duration",
         "xwayland.satellite", "xwayland.display",
-        "theme.ghostty", "theme.foot",
+        "theme.foot",
     };
     for (const auto &kv : config->values) {
         if (kv.first.rfind("keybinds.", 0) == 0 || kv.first.rfind("commands.", 0) == 0) continue;
@@ -1302,12 +1278,6 @@ void Server::set_theme(bool white) {
     for (auto *v : stack) {
         if (v->foot && v->pid > 0) kill(v->pid, white ? SIGUSR2 : SIGUSR1);
     }
-    if (!theme_base.empty()) {
-        theme_write(settings.ghostty_dir, theme_base, white);
-        for (auto *v : stack) {
-            if (v->ghostty && v->pid > 0) kill(v->pid, SIGUSR2);
-        }
-    }
     write_theme_state();
     request_frame();
 }
@@ -1321,8 +1291,7 @@ void Server::reload_config() {
     apply_repeat_settings(this);
     terminal_setup_theme();
     set_theme(theme_white);
-    launcher->scan_apps();
-    launcher->relayout();
+    launcher->reload();
     configure_all();
 }
 

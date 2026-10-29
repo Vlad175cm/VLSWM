@@ -2,6 +2,8 @@
 
 Минимальная Wayland-оболочка на **wlroots 0.20** для Arch Linux. Рабочий стол — это терминал (foot), приложения открываются поверх него на весь экран. Только чёрный и белый, только прямые углы, без обоев.
 
+**Версия 1.0.0.**
+
 > Экспериментальный проект. Писался с помощью ИИ.
 
 ## Как это работает
@@ -40,7 +42,7 @@ cmake -B build
 cmake --build build
 ```
 
-Бинарник: `build/vlswm`. Установка: `sudo ./install.sh`.
+По умолчанию собирается **Release** с LTO. Бинарник: `build/vlswm`. Установка: `sudo ./install.sh` — скрипт собирает Release и кладёт в `/usr/bin` stripped-копии. Для отладки: `cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo`.
 
 CMake сам генерирует недостающие заголовки протоколов из `wlr-protocols` и создаёт совместимые копии заголовков wlroots, в которых C99-синтаксис `[static N]` заменён на `[N]` — иначе C++-компилятор на чистом Arch отказывается собирать проект. Если системный XML протокола отсутствует или пуст, используется копия из `protocols/` в репозитории.
 
@@ -78,7 +80,6 @@ duration = 0                   # мс; 0 = без анимации
 
 [theme]
 foot = "~/.config/foot"        # каталог конфига foot
-ghostty = "~/.config/ghostty"  # только если terminal = "ghostty"
 
 [animations]
 duration = 200                 # мс
@@ -110,8 +111,6 @@ vlswm читает базовую палитру из `[colors-dark]` в `~/.con
 При `SUPER+T` vlswm посылает каждому окну foot `SIGUSR1` (чёрная тема) или `SIGUSR2` (белая). Это переключает уже открытые окна без перезапуска. Новые окна сразу стартуют в текущей теме через `initial-color-theme`.
 
 Нужен foot 1.28 или новее: более старые версии не знают секции `[colors-dark]` / `[colors-light]`.
-
-Ghostty тоже поддерживается: `[launcher] terminal = "ghostty"` и `[theme] ghostty = "~/.config/ghostty"`. В этом случае vlswm работает с `config.ghostty` и `vlswm-theme.ghostty` как раньше. По умолчанию используется foot.
 
 ## vlswmstat
 
@@ -150,7 +149,7 @@ vlswmstat --version
 - `src/server.cpp` — ввод, привязки, стек окон, процессы, xwayland-satellite.
 - `src/view.cpp` — окна (xdg), открытие и закрытие.
 - `src/launcher.cpp` — лаунчер (cairo + pango).
-- `src/theme.cpp` — тема foot (и опционально Ghostty).
+- `src/theme.cpp` — тема foot.
 - `src/vlswmstat.cpp` — дашборд `vlswmstat`.
 - `src/output.cpp`, `src/ini.cpp`, `src/animation.cpp` — выход, конфиг, анимации.
 

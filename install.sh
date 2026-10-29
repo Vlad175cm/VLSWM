@@ -143,7 +143,7 @@ main() {
   fi
 
   rm -rf "$SCRIPT_DIR/build"
-  BUILD_CMD="cd '$SCRIPT_DIR' && cmake -B build && cmake --build build"
+  BUILD_CMD="cd '$SCRIPT_DIR' && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build"
   BUILD_LOG="$SCRIPT_DIR/build.log"
   if ! sudo -u "$REAL_USER" bash -c "$BUILD_CMD" >"$BUILD_LOG" 2>&1; then
     if [ -d "$REAL_HOME/.local/vlswm-sysroot/usr/lib/pkgconfig" ]; then
@@ -163,9 +163,8 @@ main() {
   fi
 
   echo -e "${GREEN}[3/7]${NC} Installing binaries to $INSTALL_DIR..."
-  cp "$SCRIPT_DIR/build/vlswm" "$INSTALL_DIR/vlswm"
-  cp "$SCRIPT_DIR/build/vlswmstat" "$INSTALL_DIR/vlswmstat"
-  chmod +x "$INSTALL_DIR/vlswm" "$INSTALL_DIR/vlswmstat"
+  install -m 755 -s "$SCRIPT_DIR/build/vlswm" "$INSTALL_DIR/vlswm"
+  install -m 755 -s "$SCRIPT_DIR/build/vlswmstat" "$INSTALL_DIR/vlswmstat"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswmstat"
 

@@ -26,6 +26,7 @@ struct Launcher {
     Server *server = nullptr;
     struct wlr_scene_buffer *buf = nullptr;
     bool open = false;
+    bool initialized = false;
     std::string input;
     std::string error;
     uint64_t error_until = 0;
@@ -46,6 +47,7 @@ struct Launcher {
     void key(xkb_keysym_t sym, const std::string &utf8);
     void render();
     void relayout();
+    void reload();
     void animate(uint64_t now);
     bool busy() const;
     void scan_apps();

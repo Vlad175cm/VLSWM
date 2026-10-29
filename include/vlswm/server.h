@@ -8,7 +8,6 @@
 
 #include <sys/types.h>
 
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -38,7 +37,6 @@ struct Settings {
     std::string font = "JetBrainsMono Nerd Font 16";
     std::string satellite = "xwayland-satellite";
     std::string satellite_display = ":1";
-    std::string ghostty_dir;
     std::string foot_dir;
 };
 
@@ -82,7 +80,6 @@ struct Server {
     std::unique_ptr<IniConfig> config;
     Settings settings;
     std::vector<Binding> bindings;
-    std::map<std::string, std::string> theme_base;
     bool theme_white = false;
 
     struct wl_display *wl_display = nullptr;
@@ -161,7 +158,6 @@ struct Server {
     void spawn_new_terminal();
     void terminal_gone();
     void start_satellite();
-    void ghostty_setup_theme();
     void foot_setup_theme();
     void terminal_setup_theme();
     void write_theme_state();

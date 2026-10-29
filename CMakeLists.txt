@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
-project(vlswm VERSION 0.4.0 LANGUAGES C CXX)
+project(vlswm VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE RelWithDebInfo)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
 find_package(PkgConfig REQUIRED)
@@ -108,7 +108,6 @@ add_custom_target(vlswm-protocols DEPENDS ${VLSWM_PROTOCOL_HEADERS})
 add_executable(vlswmstat src/vlswmstat.cpp)
 target_compile_definitions(vlswmstat PRIVATE VLSWM_VERSION="${PROJECT_VERSION}")
 target_compile_options(vlswmstat PRIVATE -Wall -Wextra)
-
 add_executable(vlswm
     src/main.cpp
     src/server.cpp
@@ -136,7 +135,7 @@ target_include_directories(vlswm PRIVATE
     ${LIBINPUT_INCLUDE_DIRS}
 )
 
-target_compile_definitions(vlswm PRIVATE WLR_USE_UNSTABLE)
+target_compile_definitions(vlswm PRIVATE WLR_USE_UNSTABLE VLSWM_VERSION="${PROJECT_VERSION}")
 
 target_link_libraries(vlswm PRIVATE
     ${WAYLAND_LIBRARIES}
@@ -157,3 +156,11 @@ target_link_options(vlswm PRIVATE -rdynamic)
 foreach(dir ${WAYLAND_LIBRARY_DIRS} ${WLROOTS_LIBRARY_DIRS})
     target_link_directories(vlswm PRIVATE ${dir})
 endforeach()
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT _ipo_supported OUTPUT _ipo_error)
+if(_ipo_supported)
+    set_target_properties(vlswm vlswmstat PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    message(STATUS "LTO is not supported: ${_ipo_error}")
+endif()

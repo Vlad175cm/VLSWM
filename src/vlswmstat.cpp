@@ -25,7 +25,7 @@
 #include <vector>
 
 #ifndef VLSWM_VERSION
-#define VLSWM_VERSION "0.4.0"
+#define VLSWM_VERSION "1.0.0"
 #endif
 
 static volatile sig_atomic_t g_resize = 0;
@@ -359,18 +359,6 @@ static std::string theme_name() {
     if (!state_dir.empty()) {
         std::string name = trim(read_line(state_dir + "/theme"));
         if (name == "white" || name == "black") return name;
-    }
-
-    const char *home = getenv("HOME");
-    if (!home) return "unknown";
-    std::ifstream in(std::string(home) + "/.config/ghostty/vlswm-theme.ghostty");
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.rfind("background", 0) != 0) continue;
-        size_t p = line.find('#');
-        if (p == std::string::npos) continue;
-        std::string hex = line.substr(p);
-        return hex == "#ffffff" ? "white" : "black";
     }
     return "unknown";
 }
