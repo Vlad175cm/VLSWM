@@ -81,6 +81,7 @@ struct Server {
     Settings settings;
     std::vector<Binding> bindings;
     bool theme_white = false;
+    bool shutting_down = false;
 
     struct wl_display *wl_display = nullptr;
     struct wlr_backend *backend = nullptr;
