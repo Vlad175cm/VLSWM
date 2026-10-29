@@ -185,8 +185,8 @@ main() {
     echo -e "${RED}Error: Ghostty config not found in $SCRIPT_DIR/config/ghostty${NC}"
     exit 1
   fi
-  sudo -u "$REAL_USER" mkdir -p "$GHOSTTY_DIR/shaders"
-  for f in config.ghostty palette-bw.ghostty cursor-trail.conf shaders/cursor-trail.glsl; do
+  sudo -u "$REAL_USER" mkdir -p "$GHOSTTY_DIR"
+  for f in config.ghostty palette-bw.ghostty; do
     if [ -f "$GHOSTTY_DIR/$f" ]; then
       cp "$GHOSTTY_DIR/$f" "$GHOSTTY_DIR/$f.backup"
       chown "$REAL_USER:$REAL_USER" "$GHOSTTY_DIR/$f.backup"
@@ -196,8 +196,6 @@ main() {
   done
   echo -e "  ${GREEN}✓${NC} Installed: $GHOSTTY_DIR/config.ghostty"
   echo -e "  ${GREEN}✓${NC} Installed: $GHOSTTY_DIR/palette-bw.ghostty"
-  echo -e "  ${GREEN}✓${NC} Installed: $GHOSTTY_DIR/cursor-trail.conf"
-  echo -e "  ${GREEN}✓${NC} Installed: $GHOSTTY_DIR/shaders/cursor-trail.glsl"
 
   FISH_CONF_DIR="$REAL_HOME/.config/fish/conf.d"
   sudo -u "$REAL_USER" mkdir -p "$FISH_CONF_DIR"

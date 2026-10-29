@@ -81,7 +81,3 @@ window-decoration = none
 
 # vlswm theme
 config-file = vlswm-theme.ghostty
-
-
-# cursor trail effect
-config-file = cursor-trail.conf
