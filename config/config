@@ -37,6 +37,7 @@ volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
 terminal = "ghostty"
 file_manager = "yazi"
 font = "JetBrainsMono Nerd Font 16"
+duration = 0
 
 [theme]
 ghostty = "~/.config/ghostty"

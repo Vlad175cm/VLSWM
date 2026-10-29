@@ -3,9 +3,11 @@
 #include "vlswm/animation.h"
 
 #include <cairo.h>
+#include <pango/pango-font.h>
 #include <xkbcommon/xkbcommon.h>
 
 #include <cstdint>
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -30,9 +32,12 @@ struct Launcher {
     FadeAnim fade;
     struct PixBuf *pix = nullptr;
     cairo_surface_t *surf = nullptr;
+    PangoFontDescription *font_desc = nullptr;
     int width = 0;
     int height = 0;
     std::vector<DesktopApp> apps;
+    std::vector<std::string> app_dirs;
+    std::vector<time_t> app_mtimes;
 
     ~Launcher();
     void init(Server *server);
@@ -44,5 +49,6 @@ struct Launcher {
     void animate(uint64_t now);
     bool busy() const;
     void scan_apps();
+    bool apps_changed();
     bool launch(const std::string &text);
 };

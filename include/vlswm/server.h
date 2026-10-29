@@ -26,6 +26,7 @@ struct Output {
 
 struct Settings {
     uint64_t duration_ns = 300ULL * 1000000ULL;
+    uint64_t launcher_duration_ns = 0;
     Easing easing = Easing::EaseOut;
     int repeat_delay = 200;
     int repeat_rate = 40;

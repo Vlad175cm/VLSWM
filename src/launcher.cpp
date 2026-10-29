@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <sys/stat.h>
 #include <unistd.h>
 
 static const int BOX_HEIGHT = 56;
@@ -69,8 +70,10 @@ static void copy_surface(cairo_surface_t *surf, PixBuf *pix, int w, int h) {
     cairo_surface_flush(surf);
     const unsigned char *src = cairo_image_surface_get_data(surf);
     int src_stride = cairo_image_surface_get_stride(surf);
+    int dst_stride = pix->base.width * 4;
     for (int y = 0; y < h; y++) {
-        memcpy(pix->data + (size_t)y * w * 4, src + (size_t)y * src_stride, (size_t)w * 4);
+        memcpy(pix->data + (size_t)y * dst_stride, src + (size_t)y * src_stride,
+               (size_t)w * 4);
     }
 }
 
@@ -299,15 +302,34 @@ void Launcher::scan_apps() {
             parse_desktop_file(it->path(), apps, terminal_cmd);
         }
     }
+
+    app_dirs = dirs;
+    app_mtimes.clear();
+    for (const auto &d : app_dirs) {
+        struct stat st;
+        app_mtimes.push_back(stat(d.c_str(), &st) == 0 ? st.st_mtime : 0);
+    }
+}
+
+bool Launcher::apps_changed() {
+    if (app_dirs.empty()) return true;
+    for (size_t i = 0; i < app_dirs.size(); i++) {
+        struct stat st;
+        time_t mtime = stat(app_dirs[i].c_str(), &st) == 0 ? st.st_mtime : 0;
+        if (mtime != app_mtimes[i]) return true;
+    }
+    return false;
 }
 
 Launcher::~Launcher() {
+    if (font_desc) pango_font_description_free(font_desc);
     if (surf) cairo_surface_destroy(surf);
     if (pix) wlr_buffer_drop(&pix->base);
 }
 
 void Launcher::init(Server *s) {
     server = s;
+    font_desc = pango_font_description_from_string(server->settings.font.c_str());
     scan_apps();
     render();
     if (buf) wlr_scene_node_set_enabled(&buf->node, false);
@@ -326,10 +348,17 @@ void Launcher::toggle() {
     input.clear();
     error.clear();
     error_until = 0;
-    scan_apps();
+    if (apps.empty() || apps_changed()) scan_apps();
     render();
     if (buf) wlr_scene_node_set_enabled(&buf->node, true);
-    fade.begin(anim_now_ns(), server->settings.duration_ns, server->settings.easing, 0.0f, 1.0f);
+
+    if (server->settings.launcher_duration_ns == 0) {
+        fade.active = false;
+        if (buf) wlr_scene_buffer_set_opacity(buf, 1.0f);
+    } else {
+        fade.begin(anim_now_ns(), server->settings.launcher_duration_ns,
+                   server->settings.easing, 0.0f, 1.0f);
+    }
     server->request_frame();
 }
 
@@ -338,7 +367,19 @@ void Launcher::close() {
     open = false;
     error.clear();
     error_until = 0;
-    fade.begin(anim_now_ns(), server->settings.duration_ns, server->settings.easing, 1.0f, 0.0f);
+
+    if (server->settings.launcher_duration_ns == 0) {
+        fade.active = false;
+        if (buf) {
+            wlr_scene_buffer_set_opacity(buf, 0.0f);
+            wlr_scene_node_set_enabled(&buf->node, false);
+        }
+        server->request_frame();
+        return;
+    }
+
+    fade.begin(anim_now_ns(), server->settings.launcher_duration_ns,
+               server->settings.easing, 1.0f, 0.0f);
     server->request_frame();
 }
 
@@ -408,27 +449,12 @@ void Launcher::render() {
     int ow = 0, oh = 0;
     output_size(server, &ow, &oh);
     int h = BOX_HEIGHT;
+    int max_w = std::max(320, ow - 80);
     bool white = server->theme_white;
     double bg = white ? 1.0 : 0.0;
     double fg = white ? 0.0 : 1.0;
 
-    cairo_surface_t *probe = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
-    cairo_t *pcr = cairo_create(probe);
-    PangoLayout *pl = pango_cairo_create_layout(pcr);
-    PangoFontDescription *pf = pango_font_description_from_string(server->settings.font.c_str());
-    pango_layout_set_font_description(pl, pf);
-    std::string text = error.empty() ? "> " + input + "_" : error;
-    pango_layout_set_text(pl, text.c_str(), -1);
-    int tw = 0, th = 0;
-    pango_layout_get_pixel_size(pl, &tw, &th);
-    pango_font_description_free(pf);
-    g_object_unref(pl);
-    cairo_destroy(pcr);
-    cairo_surface_destroy(probe);
-
-    int w = std::clamp(tw + PADDING * 2 + BORDER * 2, 320, std::max(320, ow - 80));
-
-    if (w != width || h != height || !pix) {
+    if (!pix || width != max_w || height != h) {
         if (buf) {
             wlr_scene_node_destroy(&buf->node);
             buf = nullptr;
@@ -442,44 +468,45 @@ void Launcher::render() {
             pix = nullptr;
         }
         pix = new PixBuf;
-        pix->data = (unsigned char *)malloc((size_t)w * h * 4);
+        pix->data = (unsigned char *)malloc((size_t)max_w * h * 4);
         if (!pix->data) {
             delete pix;
             pix = nullptr;
             wlr_log(WLR_ERROR, "launcher: cannot allocate pixels");
             return;
         }
-        wlr_buffer_init(&pix->base, &pixbuf_impl, w, h);
-        surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
+        wlr_buffer_init(&pix->base, &pixbuf_impl, max_w, h);
+        surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, max_w, h);
         buf = wlr_scene_buffer_create(server->scene_overlay, &pix->base);
         if (!buf || !surf) {
             wlr_log(WLR_ERROR, "launcher: cannot create buffer");
             return;
         }
-        width = w;
+        width = max_w;
         height = h;
-    } else {
-        cairo_surface_flush(surf);
     }
 
     cairo_t *cr = cairo_create(surf);
+    PangoLayout *layout = pango_cairo_create_layout(cr);
+    pango_layout_set_font_description(layout, font_desc);
+    std::string text = error.empty() ? "> " + input + "_" : error;
+    pango_layout_set_text(layout, text.c_str(), -1);
+    int tw = 0, th = 0;
+    pango_layout_get_pixel_size(layout, &tw, &th);
+    int w = std::clamp(tw + PADDING * 2 + BORDER * 2, 320, max_w);
+
     cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
     cairo_set_source_rgb(cr, bg, bg, bg);
-    cairo_paint(cr);
+    cairo_rectangle(cr, 0, 0, w, h);
+    cairo_fill(cr);
     cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
     cairo_set_source_rgb(cr, fg, fg, fg);
     cairo_set_line_width(cr, BORDER);
     cairo_rectangle(cr, BORDER / 2.0, BORDER / 2.0, w - BORDER, h - BORDER);
     cairo_stroke(cr);
-
-    PangoLayout *layout = pango_cairo_create_layout(cr);
-    PangoFontDescription *font = pango_font_description_from_string(server->settings.font.c_str());
-    pango_layout_set_font_description(layout, font);
-    pango_layout_set_text(layout, text.c_str(), -1);
     cairo_set_source_rgb(cr, fg, fg, fg);
     cairo_move_to(cr, PADDING, (h - th) / 2.0);
     pango_cairo_show_layout(cr, layout);
-    pango_font_description_free(font);
     g_object_unref(layout);
     cairo_destroy(cr);
     copy_surface(surf, pix, w, h);
@@ -488,12 +515,18 @@ void Launcher::render() {
     pixman_region32_init_rect(&damage, 0, 0, w, h);
     wlr_scene_buffer_set_buffer_with_damage(buf, &pix->base, &damage);
     pixman_region32_fini(&damage);
+
+    struct wlr_fbox src = {0, 0, (double)w, (double)h};
+    wlr_scene_buffer_set_source_box(buf, &src);
+    wlr_scene_buffer_set_dest_size(buf, w, h);
     wlr_scene_node_set_position(&buf->node, (ow - w) / 2, (oh - h) / 2);
     wlr_scene_node_set_enabled(&buf->node, open || fade.active);
     wlr_scene_buffer_set_opacity(buf, open ? 1.0f : 0.0f);
 }
 
 void Launcher::relayout() {
+    if (font_desc) pango_font_description_free(font_desc);
+    font_desc = pango_font_description_from_string(server->settings.font.c_str());
     render();
 }
 

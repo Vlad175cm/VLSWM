@@ -980,6 +980,8 @@ void Server::load_settings() {
     settings.terminal = config->get("launcher", "terminal", "ghostty");
     settings.file_manager = config->get("launcher", "file_manager", "yazi");
     settings.font = config->get("launcher", "font", "JetBrainsMono Nerd Font 16");
+    settings.launcher_duration_ns =
+        (uint64_t)std::max(config->get_int("launcher", "duration", 0), 0) * 1000000ULL;
     settings.satellite = config->get("xwayland", "satellite", "xwayland-satellite");
     settings.satellite_display = config->get("xwayland", "display", ":1");
     settings.ghostty_dir = expand_home(config->get("theme", "ghostty", "~/.config/ghostty"));
@@ -991,6 +993,7 @@ void Server::check_config() {
         "input.repeat_delay", "input.repeat_rate", "input.repeat",
         "input.layout", "input.layout_options", "input.scroll_speed",
         "launcher.terminal", "launcher.file_manager", "launcher.font",
+        "launcher.duration",
         "xwayland.satellite", "xwayland.display",
         "theme.ghostty",
     };
@@ -1242,6 +1245,7 @@ void Server::reload_config() {
     apply_repeat_settings(this);
     ghostty_setup_theme();
     set_theme(theme_white);
+    launcher->scan_apps();
     launcher->relayout();
     configure_all();
 }
