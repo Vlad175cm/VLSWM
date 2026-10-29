@@ -175,7 +175,7 @@ static std::string foot_default_color(const std::string &key) {
     if (key == "background") return "000000";
     if (key == "foreground") return "ffffff";
     if (key == "flash") return "ffffff";
-    if (key == "cursor") return "ffffff 000000";
+    if (key == "cursor") return "000000 ffffff";
     if (key == "selection-foreground") return "000000";
     if (key == "selection-background") return "ffffff";
     if (key == "regular0") return "000000";
