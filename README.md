@@ -31,7 +31,7 @@
 - wlroots 0.20
 - `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
-- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
+- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `xdg-desktop-portal-wlr` (запись экрана), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
 
@@ -111,6 +111,18 @@ vlswm читает базовую палитру из `[colors-dark]` в `~/.con
 При `SUPER+T` vlswm посылает каждому окну foot `SIGUSR1` (чёрная тема) или `SIGUSR2` (белая). Это переключает уже открытые окна без перезапуска. Новые окна сразу стартуют в текущей теме через `initial-color-theme`.
 
 Нужен foot 1.28 или новее: более старые версии не знают секции `[colors-dark]` / `[colors-light]`.
+
+## Запись экрана
+
+vlswm отдаёт `wlr-screencopy`, поэтому работают `wf-recorder` и OBS через `xdg-desktop-portal-wlr`.
+
+```bash
+wf-recorder -f record.mp4     # весь экран, Ctrl+C — остановить
+```
+
+В OBS добавьте источник **«Захват экрана (PipeWire)»**. Портал сам выберет экран: в `~/.config/xdg-desktop-portal-wlr/config` стоит `chooser_type=none`, поэтому окно выбора не появляется.
+
+Пишется только весь экран. Захват отдельных окон требует foreign-toplevel, которого в vlswm нет. По умолчанию `max_fps=30` — для обзора достаточно, и ноутбук меньше греется; можно поднять до 60. Во время записи vlswm отключает direct scanout и композитит каждый кадр; для слабых GPU используйте VA-API H.264 в OBS. Курсор в записи может отсутствовать — если он пропадает и на экране, отключите захват курсора в OBS.
 
 ## vlswmstat
 

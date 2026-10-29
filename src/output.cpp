@@ -4,6 +4,19 @@
 
 #include <ctime>
 
+static void damage_scene(Server *server) {
+    if (!server->background) return;
+    float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float *current = server->theme_white ? white : black;
+    float *other = server->theme_white ? black : white;
+    // wlroots only renders when the scene has pending damage. A screencopy
+    // frame waits for an output commit, so damage the full-screen background
+    // to force a frame while a capture is pending.
+    wlr_scene_rect_set_color(server->background, other);
+    wlr_scene_rect_set_color(server->background, current);
+}
+
 static void output_frame(wl_listener *listener, void *data) {
     (void)data;
     Output *output = wl_container_of(listener, output, frame);
@@ -13,6 +26,9 @@ static void output_frame(wl_listener *listener, void *data) {
     if (server->animations_running()) {
         wlr_output_schedule_frame(output->wlr_output);
     }
+
+    bool pending = server->screencopy && !wl_list_empty(&server->screencopy->frames);
+    if (pending) damage_scene(server);
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);

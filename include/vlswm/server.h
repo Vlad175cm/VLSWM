@@ -91,6 +91,7 @@ struct Server {
     struct wlr_xdg_shell *xdg_shell = nullptr;
     struct wlr_layer_shell_v1 *layer_shell = nullptr;
     struct wlr_linux_dmabuf_v1 *linux_dmabuf = nullptr;
+    struct wlr_screencopy_manager_v1 *screencopy = nullptr;
     struct wlr_xdg_activation_v1 *xdg_activation = nullptr;
     struct wlr_xdg_decoration_manager_v1 *decoration_mgr = nullptr;
 
@@ -158,6 +159,7 @@ struct Server {
     void spawn_new_terminal();
     void terminal_gone();
     void start_satellite();
+    void update_portal_env();
     void foot_setup_theme();
     void terminal_setup_theme();
     void write_theme_state();

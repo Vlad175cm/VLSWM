@@ -246,6 +246,16 @@ void Server::start_satellite() {
     satellite_pid = spawn_argv({settings.satellite, settings.satellite_display});
 }
 
+void Server::update_portal_env() {
+    if (std::getenv("VLSWM_NO_PORTAL_ENV")) return;
+    const char *cmd = "/usr/bin/dbus-update-activation-environment";
+    if (access(cmd, X_OK) != 0) return;
+    std::vector<std::string> argv = {cmd, "--systemd", "WAYLAND_DISPLAY"};
+    if (std::getenv("DISPLAY")) argv.push_back("DISPLAY");
+    if (std::getenv("XDG_SESSION_TYPE")) argv.push_back("XDG_SESSION_TYPE");
+    spawn_argv(argv);
+}
+
 static void apply_repeat_settings(Server *server) {
     if (server->keyboard) {
         wlr_keyboard_set_repeat_info(server->keyboard, server->settings.repeat_rate,
@@ -828,6 +838,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     xdg_shell = wlr_xdg_shell_create(wl_display, 6);
     layer_shell = wlr_layer_shell_v1_create(wl_display, 4);
     wlr_subcompositor_create(wl_display);
+    screencopy = wlr_screencopy_manager_v1_create(wl_display);
     linux_dmabuf = wlr_linux_dmabuf_v1_create_with_renderer(wl_display, 4, renderer);
     wlr_viewporter_create(wl_display);
     wlr_fractional_scale_manager_v1_create(wl_display, 1);
@@ -916,6 +927,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
 
     terminal_setup_theme();
     start_satellite();
+    update_portal_env();
     start_terminal();
     return true;
 
