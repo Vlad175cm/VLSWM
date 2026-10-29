@@ -1,7 +1,0 @@
-# vlswm: screen recording through xdg-desktop-portal-wlr.
-# Full-screen capture only: no chooser, arbitrary output, 30 fps by default.
-# Raise max_fps to 60 if the machine can handle it.
-[screencast]
-chooser_type=none
-max_fps=30
-force_mod_linear=1

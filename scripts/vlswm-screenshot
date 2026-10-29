@@ -1,0 +1,13 @@
+#!/bin/sh
+# Select a region, save a PNG and copy it to the clipboard.
+# Bind it in vlswm: [commands] screenshot = "vlswm-screenshot".
+
+dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
+mkdir -p "$dir"
+
+geom=$(slurp -b 00000066 -c ffffffff -w 2) || exit 1
+[ -n "$geom" ] || exit 1
+
+file="$dir/$(date +%Y-%m-%d-%H%M%S).png"
+grim -g "$geom" "$file" || exit 1
+wl-copy -t image/png < "$file"

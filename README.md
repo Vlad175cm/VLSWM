@@ -31,7 +31,7 @@
 - wlroots 0.20
 - `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
-- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `xdg-desktop-portal-wlr` (запись экрана), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
+- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
 
@@ -114,21 +114,17 @@ vlswm читает базовую палитру из `[colors-dark]` в `~/.con
 
 ## Запись экрана
 
-vlswm отдаёт `wlr-screencopy`, поэтому работают `wf-recorder` и OBS через `xdg-desktop-portal-wlr`.
+`SUPER+ALT+R` запускает и останавливает запись через `wf-recorder` (VAAPI H.264, 30 fps, аудио по умолчанию). Файл: `~/Videos/review-*.mp4`.
 
 ```bash
 wf-recorder -f record.mp4     # весь экран, Ctrl+C — остановить
 ```
 
-`SUPER+ALT+R` запускает и останавливает запись через `wf-recorder` (VAAPI H.264, 30 fps, аудио по умолчанию). Файл: `~/Videos/review-*.mp4`.
+Пишется только весь экран. Захват отдельных окон требует foreign-toplevel, которого в vlswm нет. Во время записи vlswm отключает direct scanout и композитит каждый кадр.
 
-В OBS добавьте источник **«Захват экрана (PipeWire)»**. Портал сам выберет экран: в `~/.config/xdg-desktop-portal-wlr/config` стоит `chooser_type=none`, поэтому окно выбора не появляется.
+## Скриншоты
 
-Если источник OBS замирает на первом кадре — это проблема связки OBS + `xdg-desktop-portal-wlr`; для самой записи используйте `SUPER+ALT+R`, а OBS оставьте для монтажа. Захват экрана в `wf-recorder` идёт напрямую через `wlr-screencopy` и работает.
-
-Пишется только весь экран. Захват отдельных окон требует foreign-toplevel, которого в vlswm нет. По умолчанию `max_fps=30` — для обзора достаточно, и ноутбук меньше греется; можно поднять до 60. Во время записи vlswm отключает direct scanout и композитит каждый кадр; для слабых GPU используйте VA-API H.264 в OBS. Курсор в записи может отсутствовать — если он пропадает и на экране, отключите захват курсора в OBS.
-
-В OBS выберите **Advanced → FFmpeg VAAPI H.264**, 1440x900, 30 fps, CQP 20, keyint 2 s, аудио 192 kbps. QSV на Broadwell может не инициализироваться без `intel-media-sdk`; VAAPI работает из коробки. Preview можно выключить (`View → Preview`) — запись от этого не зависит.
+`SUPER+SHIFT+A` — выделить область (slurp), снять PNG (grim) и положить его в буфер (wl-copy). Файл: `~/Pictures/Screenshots/YYYY-MM-DD-HHMMSS.png`. `Esc` — отмена.
 
 ## vlswmstat
 
@@ -156,6 +152,7 @@ vlswmstat --version
 | `SUPER+SPACE` | переключить раскладку (us / ru) |
 | `SUPER+E` | файловый менеджер (yazi в отдельном окне foot) |
 | `SUPER+ALT+R` | начать / остановить запись экрана |
+| `SUPER+SHIFT+A` | скриншот выделенной области |
 | `SUPER+SHIFT+R` | перезапустить базовый терминал (сброс до fish) |
 | `SUPER+R` | перечитать конфиг |
 | `SUPER+ESC` | выход |
@@ -171,6 +168,8 @@ vlswmstat --version
 - `src/theme.cpp` — тема foot.
 - `src/vlswmstat.cpp` — дашборд `vlswmstat`.
 - `src/output.cpp`, `src/ini.cpp`, `src/animation.cpp` — выход, конфиг, анимации.
+- `scripts/vlswm-record` — запись экрана через wf-recorder.
+- `scripts/vlswm-screenshot` — выделение области и скриншот.
 
 ## Лицензия
 

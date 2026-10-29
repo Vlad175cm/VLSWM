@@ -752,9 +752,9 @@ static void handle_request_activate(wl_listener *listener, void *data) {
 static void process_cursor_motion(Server *server, uint32_t time_msec) {
     double sx = 0, sy = 0;
     struct wlr_surface *surface = nullptr;
-    View *view = desktop_view_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+    desktop_view_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
-    if (view && surface) {
+    if (surface) {
         if (surface != server->seat->pointer_state.focused_surface) {
             wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "left_ptr");
             wlr_seat_pointer_notify_enter(server->seat, surface, sx, sy);
