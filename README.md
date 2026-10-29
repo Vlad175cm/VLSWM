@@ -124,7 +124,7 @@ wf-recorder -f record.mp4     # весь экран, Ctrl+C — останови
 
 ## Скриншоты
 
-`SUPER+SHIFT+A` — выделить область (slurp), снять PNG (grim) и положить его в буфер (wl-copy). Файл: `~/Pictures/Screenshots/YYYY-MM-DD-HHMMSS.png`. `Esc` — отмена.
+`SUPER+SHIFT+A` — выделить область (slurp), снять PNG (grim) и положить его в буфер (wl-copy). Файл: `~/Downloads/YYYY-MM-DD-HHMMSS.png`. `Esc` — отмена.
 
 ## vlswmstat
 
