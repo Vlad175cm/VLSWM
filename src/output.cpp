@@ -28,12 +28,20 @@ static void output_frame(wl_listener *listener, void *data) {
     }
 
     bool pending = server->screencopy && !wl_list_empty(&server->screencopy->frames);
-    if (pending) damage_scene(server);
+    if (pending) {
+        damage_scene(server);
+        // Force composition: a fullscreen client could otherwise be direct
+        // scanned out and screencopy would read a stale front buffer.
+        wlr_output_lock_attach_render(output->wlr_output, true);
+    }
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     struct wlr_scene_output_state_options options = {};
     wlr_scene_output_commit(output->scene_output, &options);
+    if (pending) {
+        wlr_output_lock_attach_render(output->wlr_output, false);
+    }
     wlr_scene_output_send_frame_done(output->scene_output, &now);
 }
 

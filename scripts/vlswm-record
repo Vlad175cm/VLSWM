@@ -1,0 +1,25 @@
+#!/bin/sh
+# Toggle a full-screen recording with wf-recorder.
+# Bind it to a key in vlswm: [commands] record = "vlswm-record".
+
+runtime="${XDG_RUNTIME_DIR:-/tmp}"
+pidfile="$runtime/vlswm-record.pid"
+
+if [ -f "$pidfile" ]; then
+    pid=$(cat "$pidfile" 2>/dev/null)
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        kill -INT "$pid"
+        rm -f "$pidfile"
+        exit 0
+    fi
+    rm -f "$pidfile"
+fi
+
+mkdir -p "$HOME/Videos"
+state="${XDG_STATE_HOME:-$HOME/.local/state}/vlswm"
+mkdir -p "$state"
+out="$HOME/Videos/review-$(date +%Y-%m-%d-%H%M%S).mp4"
+
+wf-recorder -c h264_vaapi -d /dev/dri/renderD128 -r 30 -a -f "$out" \
+    >"$state/record.log" 2>&1 &
+echo $! >"$pidfile"

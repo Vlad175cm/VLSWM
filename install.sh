@@ -167,8 +167,11 @@ main() {
   echo -e "${GREEN}[3/7]${NC} Installing binaries to $INSTALL_DIR..."
   install -m 755 -s "$SCRIPT_DIR/build/vlswm" "$INSTALL_DIR/vlswm"
   install -m 755 -s "$SCRIPT_DIR/build/vlswmstat" "$INSTALL_DIR/vlswmstat"
+  sudo -u "$REAL_USER" install -Dm755 "$SCRIPT_DIR/scripts/vlswm-record" \
+    "$REAL_HOME/.local/bin/vlswm-record"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswmstat"
+  echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-record"
 
   echo -e "${GREEN}[4/7]${NC} Installing configuration to $CONFIG_DIR..."
   sudo -u "$REAL_USER" mkdir -p "$CONFIG_DIR"
