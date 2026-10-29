@@ -33,12 +33,13 @@ struct Settings {
     double scroll_speed = 0.5;
     std::string layout = "us,ru";
     std::string layout_options = "grp:win_space_toggle";
-    std::string terminal = "ghostty";
+    std::string terminal = "foot";
     std::string file_manager = "yazi";
     std::string font = "JetBrainsMono Nerd Font 16";
     std::string satellite = "xwayland-satellite";
     std::string satellite_display = ":1";
     std::string ghostty_dir;
+    std::string foot_dir;
 };
 
 enum class BindAction {
@@ -138,6 +139,7 @@ struct Server {
     struct wl_listener request_set_primary_selection = {};
     struct wl_listener request_start_drag = {};
     struct wl_listener request_activate = {};
+    struct wl_listener request_set_cursor = {};
 
     bool init(std::unique_ptr<IniConfig> cfg);
     void run();
@@ -160,6 +162,9 @@ struct Server {
     void terminal_gone();
     void start_satellite();
     void ghostty_setup_theme();
+    void foot_setup_theme();
+    void terminal_setup_theme();
+    void write_theme_state();
 
     View *top_view();
     View *focused_view();

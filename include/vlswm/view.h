@@ -16,6 +16,7 @@ struct View {
     bool closing = false;
     bool terminal = false;
     bool ghostty = false;
+    bool foot = false;
     pid_t pid = 0;
     bool initial_configured = false;
     FadeAnim fade;

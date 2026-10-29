@@ -16,11 +16,16 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 
 extern char **environ;
+
+static bool is_foot(const std::string &cmd);
+static void append_terminal_theme_args(Server *server, std::vector<std::string> &argv);
 
 static const uint32_t MODS_MASK = WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT |
                                   WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT;
@@ -131,12 +136,19 @@ void Server::spawn(const std::string &cmd) {
 
 void Server::spawn_file_manager() {
     if (settings.terminal.empty() || settings.file_manager.empty()) return;
-    spawn_argv({settings.terminal, "-e", settings.file_manager});
+    std::vector<std::string> argv = {settings.terminal};
+    append_terminal_theme_args(this, argv);
+    argv.push_back("-e");
+    argv.push_back(settings.file_manager);
+    spawn_argv(argv);
 }
 
 pid_t Server::spawn_terminal_command(const std::string &cmd) {
     if (settings.terminal.empty()) return 0;
-    return spawn_argv({settings.terminal, "-e", "/bin/sh", "-c", cmd});
+    std::vector<std::string> argv = {settings.terminal};
+    append_terminal_theme_args(this, argv);
+    argv.insert(argv.end(), {"-e", "/bin/sh", "-c", cmd});
+    return spawn_argv(argv);
 }
 
 static void reap_children(Server *server) {
@@ -194,12 +206,26 @@ static bool is_ghostty(const std::string &cmd) {
     return lower(base) == "ghostty";
 }
 
+static bool is_foot(const std::string &cmd) {
+    size_t slash = cmd.find_last_of('/');
+    std::string base = slash == std::string::npos ? cmd : cmd.substr(slash + 1);
+    return lower(base) == "foot" || lower(base) == "footclient";
+}
+
+static void append_terminal_theme_args(Server *server, std::vector<std::string> &argv) {
+    if (!is_foot(server->settings.terminal)) return;
+    argv.push_back("-o");
+    argv.push_back(server->theme_white ? "initial-color-theme=light"
+                                       : "initial-color-theme=dark");
+}
+
 void Server::start_terminal() {
     for (auto *v : stack) {
         if (v->terminal) return;
     }
     if (settings.terminal.empty()) return;
     std::vector<std::string> argv = {"/usr/bin/env", "VLSWM_BASE_TERM=1", settings.terminal};
+    append_terminal_theme_args(this, argv);
     if (is_ghostty(settings.terminal)) argv.push_back("--gtk-single-instance=false");
     pid_t pid = spawn_argv(argv);
     if (pid > 0) base_pid = pid;
@@ -208,6 +234,7 @@ void Server::start_terminal() {
 void Server::spawn_new_terminal() {
     if (settings.terminal.empty()) return;
     std::vector<std::string> argv = {settings.terminal};
+    append_terminal_theme_args(this, argv);
     if (is_ghostty(settings.terminal)) argv.push_back("--gtk-single-instance=false");
     spawn_argv(argv);
 }
@@ -665,6 +692,15 @@ static void handle_request_set_primary_selection(wl_listener *listener, void *da
     wlr_seat_set_primary_selection(server->seat, event->source, event->serial);
 }
 
+static void handle_request_set_cursor(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, request_set_cursor);
+    struct wlr_seat_pointer_request_set_cursor_event *event =
+        (struct wlr_seat_pointer_request_set_cursor_event *)data;
+    if (event->seat_client != server->seat->pointer_state.focused_client) return;
+    wlr_cursor_set_surface(server->cursor, event->surface,
+                           event->hotspot_x, event->hotspot_y);
+}
+
 static void handle_request_start_drag(wl_listener *listener, void *data) {
     Server *server = wl_container_of(listener, server, request_start_drag);
     struct wlr_seat_request_start_drag_event *event =
@@ -841,6 +877,8 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wl_signal_add(&seat->events.request_set_primary_selection, &request_set_primary_selection);
     request_start_drag.notify = handle_request_start_drag;
     wl_signal_add(&seat->events.request_start_drag, &request_start_drag);
+    request_set_cursor.notify = handle_request_set_cursor;
+    wl_signal_add(&seat->events.request_set_cursor, &request_set_cursor);
     if (xdg_activation) {
         request_activate.notify = handle_request_activate;
         wl_signal_add(&xdg_activation->events.request_activate, &request_activate);
@@ -885,7 +923,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
         goto fail;
     }
 
-    ghostty_setup_theme();
+    terminal_setup_theme();
     start_satellite();
     start_terminal();
     return true;
@@ -903,6 +941,38 @@ void Server::ghostty_setup_theme() {
     }
     theme_ensure_include(settings.ghostty_dir);
     theme_write(settings.ghostty_dir, theme_base, theme_white);
+}
+
+static std::string state_dir() {
+    const char *state = std::getenv("XDG_STATE_HOME");
+    if (state && *state) return std::string(state) + "/vlswm";
+    const char *home = std::getenv("HOME");
+    return home && *home ? std::string(home) + "/.local/state/vlswm"
+                         : std::string("/tmp/vlswm");
+}
+
+void Server::write_theme_state() {
+    std::string dir = state_dir();
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    std::ofstream out(dir + "/theme", std::ios::trunc);
+    if (!out) return;
+    out << (theme_white ? "white\n" : "black\n");
+}
+
+void Server::foot_setup_theme() {
+    foot_theme_ensure_include(settings.foot_dir);
+    auto base = foot_theme_read_base(settings.foot_dir);
+    foot_theme_write(settings.foot_dir, base);
+}
+
+void Server::terminal_setup_theme() {
+    if (is_foot(settings.terminal)) {
+        foot_setup_theme();
+    } else if (is_ghostty(settings.terminal)) {
+        ghostty_setup_theme();
+    }
+    write_theme_state();
 }
 
 void Server::run() {
@@ -931,6 +1001,7 @@ void Server::finish() {
         drop_listener(&request_set_primary_selection);
         drop_listener(&request_start_drag);
         drop_listener(&request_activate);
+        drop_listener(&request_set_cursor);
         if (repeat_timer) {
             wl_event_source_remove(repeat_timer);
             repeat_timer = nullptr;
@@ -977,7 +1048,7 @@ void Server::load_settings() {
     } catch (...) {
         settings.scroll_speed = 0.5;
     }
-    settings.terminal = config->get("launcher", "terminal", "ghostty");
+    settings.terminal = config->get("launcher", "terminal", "foot");
     settings.file_manager = config->get("launcher", "file_manager", "yazi");
     settings.font = config->get("launcher", "font", "JetBrainsMono Nerd Font 16");
     settings.launcher_duration_ns =
@@ -985,6 +1056,7 @@ void Server::load_settings() {
     settings.satellite = config->get("xwayland", "satellite", "xwayland-satellite");
     settings.satellite_display = config->get("xwayland", "display", ":1");
     settings.ghostty_dir = expand_home(config->get("theme", "ghostty", "~/.config/ghostty"));
+    settings.foot_dir = expand_home(config->get("theme", "foot", "~/.config/foot"));
 }
 
 void Server::check_config() {
@@ -995,7 +1067,7 @@ void Server::check_config() {
         "launcher.terminal", "launcher.file_manager", "launcher.font",
         "launcher.duration",
         "xwayland.satellite", "xwayland.display",
-        "theme.ghostty",
+        "theme.ghostty", "theme.foot",
     };
     for (const auto &kv : config->values) {
         if (kv.first.rfind("keybinds.", 0) == 0 || kv.first.rfind("commands.", 0) == 0) continue;
@@ -1227,12 +1299,16 @@ void Server::set_theme(bool white) {
     float color[4] = {c, c, c, 1.0f};
     wlr_scene_rect_set_color(background, color);
     launcher->relayout();
+    for (auto *v : stack) {
+        if (v->foot && v->pid > 0) kill(v->pid, white ? SIGUSR2 : SIGUSR1);
+    }
     if (!theme_base.empty()) {
         theme_write(settings.ghostty_dir, theme_base, white);
         for (auto *v : stack) {
             if (v->ghostty && v->pid > 0) kill(v->pid, SIGUSR2);
         }
     }
+    write_theme_state();
     request_frame();
 }
 
@@ -1243,7 +1319,7 @@ void Server::reload_config() {
     load_settings();
     load_bindings();
     apply_repeat_settings(this);
-    ghostty_setup_theme();
+    terminal_setup_theme();
     set_theme(theme_white);
     launcher->scan_apps();
     launcher->relayout();

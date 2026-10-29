@@ -34,13 +34,14 @@ volume_down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
 volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
 
 [launcher]
-terminal = "ghostty"
+terminal = "foot"
 file_manager = "yazi"
 font = "JetBrainsMono Nerd Font 16"
 duration = 0
 
 [theme]
 ghostty = "~/.config/ghostty"
+foot = "~/.config/foot"
 
 [animations]
 duration = 200

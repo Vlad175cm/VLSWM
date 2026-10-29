@@ -348,6 +348,19 @@ static std::string battery() {
 }
 
 static std::string theme_name() {
+    const char *state = getenv("XDG_STATE_HOME");
+    std::string state_dir;
+    if (state && *state) {
+        state_dir = std::string(state) + "/vlswm";
+    } else {
+        const char *home = getenv("HOME");
+        if (home) state_dir = std::string(home) + "/.local/state/vlswm";
+    }
+    if (!state_dir.empty()) {
+        std::string name = trim(read_line(state_dir + "/theme"));
+        if (name == "white" || name == "black") return name;
+    }
+
     const char *home = getenv("HOME");
     if (!home) return "unknown";
     std::ifstream in(std::string(home) + "/.config/ghostty/vlswm-theme.ghostty");

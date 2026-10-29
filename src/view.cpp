@@ -5,7 +5,7 @@
 
 #include <cstring>
 
-static const char *TERMINAL_APP_ID = "com.mitchellh.ghostty";
+static const char *GHOSTTY_APP_ID = "com.mitchellh.ghostty";
 
 static void set_tree_opacity(struct wlr_scene_node *node, float o) {
     if (node->type == WLR_SCENE_NODE_BUFFER) {
@@ -59,21 +59,25 @@ void View::xdg_map(wl_listener *listener, void *data) {
     Server *server = view->server;
 
     const char *app_id = view->xdg_surface->toplevel ? view->xdg_surface->toplevel->app_id : nullptr;
-    bool is_terminal = app_id && strcmp(app_id, TERMINAL_APP_ID) == 0;
-    if (is_terminal) {
-        pid_t pid = 0;
-        wl_client_get_credentials(wl_resource_get_client(view->xdg_surface->resource),
-                                  &pid, nullptr, nullptr);
-        view->ghostty = true;
-        view->pid = pid;
+    pid_t pid = 0;
+    wl_client_get_credentials(wl_resource_get_client(view->xdg_surface->resource),
+                              &pid, nullptr, nullptr);
+    view->pid = pid;
+    view->ghostty = app_id && strcmp(app_id, GHOSTTY_APP_ID) == 0;
+    view->foot = app_id && (strcmp(app_id, "foot") == 0 ||
+                            strcmp(app_id, "footclient") == 0);
 
+    if (server->base_pid > 0) {
+        view->terminal = pid == server->base_pid;
+    } else if (view->foot || view->ghostty) {
         bool base_alive = false;
         for (auto *v : server->stack) {
             if (v->terminal) base_alive = true;
         }
-
-        view->terminal = !base_alive;
-        if (!base_alive && server->base_pid == 0) server->base_pid = pid;
+        if (!base_alive) {
+            view->terminal = true;
+            server->base_pid = pid;
+        }
     }
 
     view->mapped = true;
