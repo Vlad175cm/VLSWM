@@ -42,6 +42,7 @@ void Osd::render() {
     cairo_destroy(cr);
     ov.commit(OSD_W, OSD_H);
     wlr_scene_node_set_position(&ov.node->node, (ow - OSD_W) / 2, OSD_MARGIN);
+    wlr_scene_node_set_enabled(&ov.node->node, visible);
 }
 
 void Osd::show(double fraction) {

@@ -186,6 +186,7 @@ struct Server {
     void close_view(View *view);
     void restart_terminal();
     void set_theme(bool white);
+    void apply_output_scale();
     void show_osd(const std::string &action, const std::string &cmd);
     void configure_all();
     void request_frame();

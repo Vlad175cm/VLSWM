@@ -1443,6 +1443,23 @@ void Server::set_theme(bool white) {
     request_frame();
 }
 
+void Server::apply_output_scale() {
+    wlr_xcursor_manager_load(cursor_mgr, (float)settings.scale);
+    for (auto *o : outputs) {
+        struct wlr_output_state state;
+        wlr_output_state_init(&state);
+        wlr_output_state_set_scale(&state, (float)settings.scale);
+        wlr_output_commit_state(o->wlr_output, &state);
+        wlr_output_state_finish(&state);
+        int w = 0, h = 0;
+        wlr_output_effective_resolution(o->wlr_output, &w, &h);
+        wlr_scene_rect_set_size(background, w, h);
+    }
+    if (launcher) launcher->relayout();
+    if (osd) osd->render();
+    configure_all();
+}
+
 void Server::reload_config() {
     if (!config) return;
     config = std::make_unique<IniConfig>(IniConfig::load_or_empty(config->path()));
@@ -1451,6 +1468,7 @@ void Server::reload_config() {
     load_bindings();
     apply_repeat_settings(this);
     terminal_setup_theme();
+    apply_output_scale();
     set_theme(theme_white);
     launcher->reload();
     configure_all();
