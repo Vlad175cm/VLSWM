@@ -31,7 +31,7 @@
 - wlroots 0.20
 - `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
-- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
+- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
 
@@ -97,6 +97,9 @@ repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightn
 [xwayland]
 satellite = "xwayland-satellite"
 display = ":1"
+
+[output]
+scale = 1.0                   # масштаб интерфейса (1.0, 1.5, 2.0)
 ```
 
 ### Как добавить приложение на клавишу
@@ -176,11 +179,27 @@ vlswmstat --version
 - `src/server.cpp` — ввод, привязки, стек окон, процессы, xwayland-satellite.
 - `src/view.cpp` — окна (xdg), открытие и закрытие.
 - `src/launcher.cpp` — лаунчер (cairo + pango).
+- `src/osd.cpp` — оверлей громкости и яркости.
+- `src/clipboard.cpp` — пикер истории буфера.
+- `src/overlay.cpp` — общий буфер для лаунчера, OSD и пикера.
 - `src/theme.cpp` — тема foot.
 - `src/vlswmstat.cpp` — дашборд `vlswmstat`.
 - `src/output.cpp`, `src/ini.cpp`, `src/animation.cpp` — выход, конфиг, анимации.
 - `scripts/vlswm-record` — запись экрана через wf-recorder.
 - `scripts/vlswm-screenshot` — выделение области и скриншот.
+
+## Батарея
+
+На ноутбуках TLP на батарее выставляет `CPU_SCALING_GOVERNOR_ON_BAT=powersave`. С драйвером `intel_cpufreq` (intel_pstate в passive-режиме, как на старых Intel) такой говернор держит минимальную частоту даже под полной нагрузкой: 800 МГц вместо 2.9 ГГц turbo. Вся система становится в 3–4 раза медленнее, и приложения запускаются заметно дольше.
+
+Для интерактивной работы нужен `schedutil` и включённый turbo. В `/etc/tlp.conf`:
+
+```ini
+CPU_SCALING_GOVERNOR_ON_BAT=schedutil
+CPU_BOOST_ON_BAT=1
+```
+
+TLP читает `/etc/tlp.conf` последним, поэтому значения из `/etc/tlp.d/*.conf` эти строки не переопределят. Применить: `sudo tlp start`. В простое schedutil всё равно опускает частоту до минимума, так что расход в покое не растёт.
 
 ## Лицензия
 
