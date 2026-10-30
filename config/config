@@ -57,7 +57,7 @@ repeat_rate = 40
 scroll_speed = 0.5
 layout = "us,ru"
 layout_options = "grp:win_space_toggle"
-repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down"
+repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down, kbd_brightness_up, kbd_brightness_down"
 
 [xwayland]
 satellite = "xwayland-satellite"
