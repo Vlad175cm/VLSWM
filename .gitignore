@@ -4,3 +4,4 @@ build.log
 tests/
 cmake-build-*/
 compile_commands.json
+TODO.md
