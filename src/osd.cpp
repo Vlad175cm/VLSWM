@@ -4,9 +4,9 @@
 
 #include <algorithm>
 
-static const int OSD_W = 360;
-static const int OSD_H = 20;
-static const int OSD_MARGIN = 24;
+static const int OSD_W = 300;
+static const int OSD_H = 26;
+static const int OSD_MARGIN = 12;
 static const int OSD_INSET = 2;
 static const int OSD_BAR_H = 4;
 
