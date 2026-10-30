@@ -10,6 +10,18 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 
 > Experimental project. Written with the help of AI.
 
+## Screenshots
+
+| Dashboard, black theme | Dashboard, white theme |
+|---|---|
+| ![Dashboard, black theme](assets/screenshots/dashboard-black.png) | ![Dashboard, white theme](assets/screenshots/dashboard-white.png) |
+
+| Launcher, black theme | Launcher, white theme |
+|---|---|
+| ![Launcher, black theme](assets/screenshots/launcher-black.png) | ![Launcher, white theme](assets/screenshots/launcher-white.png) |
+
+![Editing the vlswm config in Neovim](assets/screenshots/editor-black.png)
+
 ## How it works
 
 - On start **foot** opens fullscreen as the base layer: it cannot be closed. If it exits (for example `exit` in fish), vlswm starts it again.
@@ -139,7 +151,7 @@ wf-recorder -f record.mp4     # whole screen, Ctrl+C to stop
 
 Only the whole screen is recorded. Capturing individual windows requires foreign-toplevel, which vlswm does not implement. While recording vlswm disables direct scanout and composites every frame.
 
-## Screenshots
+## Taking screenshots
 
 `SUPER+SHIFT+A` — select a region (slurp), save a PNG (grim) and copy it to the clipboard (wl-copy). File: `~/Downloads/YYYY-MM-DD-HHMMSS.png`. `Esc` cancels.
 

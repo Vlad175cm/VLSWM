@@ -10,6 +10,18 @@
 
 > Экспериментальный проект. Писался с помощью ИИ.
 
+## Скриншоты
+
+| Дашборд, чёрная тема | Дашборд, белая тема |
+|---|---|
+| ![Дашборд, чёрная тема](assets/screenshots/dashboard-black.png) | ![Дашборд, белая тема](assets/screenshots/dashboard-white.png) |
+
+| Лаунчер, чёрная тема | Лаунчер, белая тема |
+|---|---|
+| ![Лаунчер, чёрная тема](assets/screenshots/launcher-black.png) | ![Лаунчер, белая тема](assets/screenshots/launcher-white.png) |
+
+![Редактирование конфига vlswm в Neovim](assets/screenshots/editor-black.png)
+
 ## Как это работает
 
 - При запуске сразу открывается **foot** на весь экран. Это базовый слой: закрыть его нельзя. Если он завершился (например, `exit` в fish), vlswm запускает его снова.
@@ -139,7 +151,7 @@ wf-recorder -f record.mp4     # весь экран, Ctrl+C — останови
 
 Пишется только весь экран. Захват отдельных окон требует foreign-toplevel, которого в vlswm нет. Во время записи vlswm отключает direct scanout и композитит каждый кадр.
 
-## Скриншоты
+## Как сделать скриншот
 
 `SUPER+SHIFT+A` — выделить область (slurp), снять PNG (grim) и положить его в буфер (wl-copy). Файл: `~/Downloads/YYYY-MM-DD-HHMMSS.png`. `Esc` — отмена.
 
