@@ -45,5 +45,11 @@ chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.local/bin/vlswm-record" \
 echo "==> Installing SDDM session"
 install -m 644 "$DIR/vlswm.desktop" /usr/share/wayland-sessions/vlswm.desktop
 
+CONFIG="$REAL_HOME/.config/vlswm/config"
+if [ -f "$CONFIG" ] && ! cmp -s "$DIR/config/config" "$CONFIG"; then
+    echo "==> Note: $CONFIG differs from the shipped defaults"
+    echo "    Compare it to see new keybinds/options: diff \"$DIR/config/config\" \"$CONFIG\""
+fi
+
 echo "==> Done: $(/usr/bin/vlswm --version), $(/usr/bin/vlswmstat --version)"
 echo "    Log out and back in (SUPER+ESC) to use the new binary."
