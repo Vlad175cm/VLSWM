@@ -17,6 +17,15 @@ if [ -z "$REAL_HOME" ] || [ ! -d "$REAL_HOME" ]; then
     exit 1
 fi
 
+if [ -d "$DIR/.git" ] && command -v git >/dev/null 2>&1; then
+    if [ -n "$(sudo -u "$REAL_USER" git -C "$DIR" status --porcelain 2>/dev/null)" ]; then
+        echo "==> Local changes in $DIR, skipping git pull"
+    else
+        echo "==> Updating source"
+        sudo -u "$REAL_USER" git -C "$DIR" pull --ff-only
+    fi
+fi
+
 echo "==> Building in $DIR/build"
 mkdir -p "$DIR/build"
 chown -R "$REAL_USER:$REAL_USER" "$DIR/build"
