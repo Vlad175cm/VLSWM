@@ -2,6 +2,8 @@
 #include "vlswm/server.h"
 #include "vlswm/view.h"
 #include "vlswm/launcher.h"
+#include "vlswm/osd.h"
+#include "vlswm/clipboard.h"
 #include "vlswm/theme.h"
 
 #include <xkbcommon/xkbcommon.h>
@@ -14,6 +16,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -324,6 +327,16 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
             r.utf8 = utf8;
             r.keycode = event->keycode;
             server->start_repeat(r);
+        }
+
+        if (!kb->swallowed && server->clipboard->open &&
+            !(modifiers & (WLR_MODIFIER_LOGO | WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT))) {
+            char buf[32] = {0};
+            xkb_state_key_get_utf8(keyboard->xkb_state, keycode, buf, sizeof(buf));
+            xkb_keysym_t sym = n > 0 ? base[0] : XKB_KEY_NoSymbol;
+            server->clipboard->key(sym, buf);
+            kb->swallowed = true;
+            kb->swallowed_keycode = event->keycode;
         }
     } else if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED) {
         server->stop_repeat(event->keycode);
@@ -896,6 +909,10 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
 
     launcher = new Launcher;
     launcher->init(this);
+    osd = new Osd;
+    osd->init(this);
+    clipboard = new Clipboard;
+    clipboard->init(this);
 
     cursor = wlr_cursor_create();
     wlr_cursor_attach_output_layout(cursor, output_layout);
@@ -960,6 +977,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     start_satellite();
     update_portal_env();
     start_terminal();
+    spawn("command -v cliphist >/dev/null 2>&1 && wl-paste --watch cliphist store");
     return true;
 
 fail:
@@ -1124,6 +1142,7 @@ void Server::load_bindings() {
         BindAction type = BindAction::Spawn;
         std::string cmd;
         if (action == "launcher") type = BindAction::Launcher;
+        else if (action == "clipboard") type = BindAction::Clipboard;
         else if (action == "file_manager") type = BindAction::FileManager;
         else if (action == "terminal") type = BindAction::NewTerminal;
         else if (action == "restart_terminal") type = BindAction::RestartTerminal;
@@ -1147,6 +1166,7 @@ void Server::load_bindings() {
         while (std::getline(ss, combo, ',')) {
             Binding b;
             b.action = type;
+            b.name = action;
             b.cmd = cmd;
             b.repeat = is_repeat_action(action, repeat_list);
             if (!parse_combo(combo, &b.mods, &b.sym)) {
@@ -1180,10 +1200,14 @@ void Server::run_action(int idx) {
         case BindAction::SwapPrev: swap_views(-1); break;
         case BindAction::Theme: set_theme(!theme_white); break;
         case BindAction::Launcher: launcher->toggle(); break;
+        case BindAction::Clipboard: clipboard->toggle(); break;
         case BindAction::FileManager: spawn_file_manager(); break;
         case BindAction::NewTerminal: spawn_new_terminal(); break;
         case BindAction::RestartTerminal: restart_terminal(); break;
-        case BindAction::Spawn: spawn(b.cmd); break;
+        case BindAction::Spawn:
+            spawn(b.cmd);
+            show_osd(b.name, b.cmd);
+            break;
     }
 }
 
@@ -1332,6 +1356,73 @@ void Server::close_view(View *view) {
     request_frame();
 }
 
+static std::string run_capture(const std::string &cmd) {
+    std::string out;
+    FILE *p = popen(cmd.c_str(), "r");
+    if (!p) return out;
+    char buf[256];
+    while (fgets(buf, sizeof(buf), p)) out += buf;
+    pclose(p);
+    return out;
+}
+
+static int first_int(const std::string &s) {
+    size_t i = 0;
+    while (i < s.size() && !isdigit((unsigned char)s[i])) i++;
+    return atoi(s.c_str() + i);
+}
+
+void Server::show_osd(const std::string &action, const std::string &cmd) {
+    if (!osd) return;
+    char text[96];
+
+    if (action.rfind("volume", 0) == 0) {
+        std::string out = run_capture("wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null");
+        if (out.empty()) return;
+        bool muted = out.find("MUTED") != std::string::npos;
+        size_t p = out.find(':');
+        double v = p == std::string::npos ? 0.0 : atof(out.c_str() + p + 1);
+        if (muted) {
+            snprintf(text, sizeof(text), "MUTED");
+            osd->show(text, 0.0);
+        } else {
+            snprintf(text, sizeof(text), "VOLUME %d%%", (int)lround(v * 100.0));
+            osd->show(text, v);
+        }
+        return;
+    }
+
+    std::string label;
+    std::string device;
+    if (action == "brightness_up" || action == "brightness_down") {
+        label = "BRIGHTNESS";
+    } else if (action.rfind("kbd_brightness", 0) == 0) {
+        label = "KEYBOARD";
+        size_t p = cmd.find("--device=");
+        if (p != std::string::npos) {
+            size_t b = p + 9;
+            if (b < cmd.size() && (cmd[b] == '\'' || cmd[b] == '"')) {
+                char q = cmd[b++];
+                size_t e = cmd.find(q, b);
+                device = cmd.substr(b, e == std::string::npos ? std::string::npos : e - b);
+            } else {
+                size_t e = cmd.find_first_of(" \t", b);
+                device = cmd.substr(b, e == std::string::npos ? std::string::npos : e - b);
+            }
+        }
+    } else {
+        return;
+    }
+
+    std::string base = "brightnessctl ";
+    if (!device.empty()) base += "--device='" + device + "' ";
+    int cur = first_int(run_capture(base + "g 2>/dev/null"));
+    int max = first_int(run_capture(base + "m 2>/dev/null"));
+    double v = max > 0 ? (double)cur / (double)max : 0.0;
+    snprintf(text, sizeof(text), "%s %d%%", label.c_str(), (int)lround(v * 100.0));
+    osd->show(text, v);
+}
+
 void Server::set_theme(bool white) {
     theme_white = white;
     float c = white ? 1.0f : 0.0f;
@@ -1378,6 +1469,7 @@ bool Server::animations_running() const {
 
 void Server::animate(uint64_t now) {
     if (launcher) launcher->animate(now);
+    if (osd) osd->animate(now);
 
     for (size_t i = 0; i < stack.size(); i++) {
         View *v = stack[i];

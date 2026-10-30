@@ -14,6 +14,8 @@
 
 struct View;
 struct Launcher;
+struct Osd;
+struct Clipboard;
 
 struct Output {
     struct wlr_output *wlr_output;
@@ -50,6 +52,7 @@ enum class BindAction {
     SwapPrev,
     Theme,
     Launcher,
+    Clipboard,
     FileManager,
     NewTerminal,
     RestartTerminal,
@@ -60,6 +63,7 @@ struct Binding {
     uint32_t mods = 0;
     xkb_keysym_t sym = XKB_KEY_NoSymbol;
     BindAction action = BindAction::Spawn;
+    std::string name;
     std::string cmd;
     bool repeat = false;
 };
@@ -117,6 +121,8 @@ struct Server {
     std::vector<View *> stack;
     std::vector<Output *> outputs;
     Launcher *launcher = nullptr;
+    Osd *osd = nullptr;
+    Clipboard *clipboard = nullptr;
 
     pid_t base_pid = 0;
     pid_t satellite_pid = 0;
@@ -180,6 +186,7 @@ struct Server {
     void close_view(View *view);
     void restart_terminal();
     void set_theme(bool white);
+    void show_osd(const std::string &action, const std::string &cmd);
     void configure_all();
     void request_frame();
     void animate(uint64_t now);

@@ -31,7 +31,7 @@ install_dependencies() {
       libxkbcommon pixman libinput cairo pango wlr-protocols \
       pkgconf cmake make gcc \
       foot fish xwayland-satellite \
-      grim slurp wl-clipboard wf-recorder \
+      grim slurp wl-clipboard wf-recorder cliphist \
       brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa
     ;;
   fedora)
@@ -39,7 +39,7 @@ install_dependencies() {
       pixman-devel libinput-devel cairo-devel pango-devel wlr-protocols-devel \
       pkgconf-pkg-config cmake gcc-c++ make \
       fish foot brightnessctl pipewire wireplumber sddm jetbrains-mono-fonts \
-      mesa-dri-drivers mesa-libGL grim slurp wl-clipboard wf-recorder
+      mesa-dri-drivers mesa-libGL grim slurp wl-clipboard wf-recorder cliphist
     warn_manual_install
     ;;
   debian)
@@ -49,7 +49,7 @@ install_dependencies() {
       libcairo2-dev libpango1.0-dev \
       pkg-config cmake g++ make \
       fish foot brightnessctl pipewire wireplumber sddm fonts-jetbrains-mono \
-      libgl1-mesa-dri grim slurp wl-clipboard wf-recorder
+      libgl1-mesa-dri grim slurp wl-clipboard wf-recorder cliphist
     warn_manual_install
     ;;
   opensuse)
@@ -57,7 +57,7 @@ install_dependencies() {
       pixman-devel libinput-devel cairo-devel pango-devel \
       wlr-protocols-devel pkg-config cmake gcc-c++ make \
       fish foot brightnessctl pipewire wireplumber sddm \
-      jetbrains-mono-fonts Mesa Mesa-libGL1 grim slurp wl-clipboard wf-recorder
+      jetbrains-mono-fonts Mesa Mesa-libGL1 grim slurp wl-clipboard wf-recorder cliphist
     warn_manual_install
     ;;
   *)
@@ -91,7 +91,7 @@ ask_distro() {
 
 check_runtime_tools() {
   local missing=""
-  for tool in foot fish xwayland-satellite grim slurp wl-copy wf-recorder; do
+  for tool in foot fish xwayland-satellite grim slurp wl-copy wf-recorder cliphist; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       missing="$missing $tool"
     fi

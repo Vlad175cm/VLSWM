@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vlswm/animation.h"
+#include "vlswm/overlay.h"
 
 #include <cairo.h>
 #include <pango/pango-font.h>
@@ -12,8 +13,6 @@
 #include <vector>
 
 struct Server;
-struct wlr_scene_buffer;
-struct PixBuf;
 
 struct DesktopApp {
     std::string name;
@@ -24,16 +23,12 @@ struct DesktopApp {
 
 struct Launcher {
     Server *server = nullptr;
-    struct wlr_scene_buffer *buf = nullptr;
+    OverlayBuffer ov;
     bool open = false;
     bool initialized = false;
     std::string input;
     FadeAnim fade;
-    struct PixBuf *pix = nullptr;
-    cairo_surface_t *surf = nullptr;
     PangoFontDescription *font_desc = nullptr;
-    int width = 0;
-    int height = 0;
     std::vector<DesktopApp> apps;
     std::vector<std::string> app_dirs;
     std::vector<time_t> app_mtimes;

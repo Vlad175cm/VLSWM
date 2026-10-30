@@ -1,8 +1,8 @@
 #include "vlswm/launcher.h"
+#include "vlswm/overlay.h"
 #include "vlswm/server.h"
 
 #include <cairo.h>
-#include <drm_fourcc.h>
 #include <pango/pangocairo.h>
 #include <wlr/util/log.h>
 
@@ -20,62 +20,6 @@ static const int BOX_HEIGHT = 56;
 static const int ROW_HEIGHT = 34;
 static const int BORDER = 2;
 static const int PADDING = 16;
-
-struct PixBuf {
-    struct wlr_buffer base;
-    unsigned char *data;
-};
-
-static void pixbuf_destroy(struct wlr_buffer *wlr_buffer) {
-    auto *pb = (PixBuf *)wlr_buffer;
-    free(pb->data);
-    delete pb;
-}
-
-static bool pixbuf_begin(struct wlr_buffer *wlr_buffer, uint32_t flags, void **data,
-                         uint32_t *format, size_t *stride) {
-    auto *pb = (PixBuf *)wlr_buffer;
-    (void)flags;
-    *data = pb->data;
-    *format = DRM_FORMAT_ARGB8888;
-    *stride = (size_t)wlr_buffer->width * 4;
-    return true;
-}
-
-static void pixbuf_end(struct wlr_buffer *wlr_buffer) {
-    (void)wlr_buffer;
-}
-
-static bool pixbuf_get_dmabuf(struct wlr_buffer *wlr_buffer, struct wlr_dmabuf_attributes *attribs) {
-    (void)wlr_buffer;
-    (void)attribs;
-    return false;
-}
-
-static bool pixbuf_get_shm(struct wlr_buffer *wlr_buffer, struct wlr_shm_attributes *attribs) {
-    (void)wlr_buffer;
-    (void)attribs;
-    return false;
-}
-
-static const struct wlr_buffer_impl pixbuf_impl = {
-    .destroy = pixbuf_destroy,
-    .get_dmabuf = pixbuf_get_dmabuf,
-    .get_shm = pixbuf_get_shm,
-    .begin_data_ptr_access = pixbuf_begin,
-    .end_data_ptr_access = pixbuf_end,
-};
-
-static void copy_surface(cairo_surface_t *surf, PixBuf *pix, int w, int h) {
-    cairo_surface_flush(surf);
-    const unsigned char *src = cairo_image_surface_get_data(surf);
-    int src_stride = cairo_image_surface_get_stride(surf);
-    int dst_stride = pix->base.width * 4;
-    for (int y = 0; y < h; y++) {
-        memcpy(pix->data + (size_t)y * dst_stride, src + (size_t)y * src_stride,
-               (size_t)w * 4);
-    }
-}
 
 static void output_size(Server *server, int *w, int *h) {
     *w = 0;
@@ -323,8 +267,6 @@ bool Launcher::apps_changed() {
 
 Launcher::~Launcher() {
     if (font_desc) pango_font_description_free(font_desc);
-    if (surf) cairo_surface_destroy(surf);
-    if (pix) wlr_buffer_drop(&pix->base);
 }
 
 void Launcher::init(Server *s) {
@@ -371,11 +313,11 @@ void Launcher::toggle() {
         scan_apps();
     }
     render();
-    if (buf) wlr_scene_node_set_enabled(&buf->node, true);
+    if (ov.node) wlr_scene_node_set_enabled(&ov.node->node, true);
 
     if (server->settings.launcher_duration_ns == 0) {
         fade.active = false;
-        if (buf) wlr_scene_buffer_set_opacity(buf, 1.0f);
+        if (ov.node) wlr_scene_buffer_set_opacity(ov.node, 1.0f);
     } else {
         fade.begin(anim_now_ns(), server->settings.launcher_duration_ns,
                    server->settings.easing, 0.0f, 1.0f);
@@ -389,9 +331,9 @@ void Launcher::close() {
 
     if (server->settings.launcher_duration_ns == 0) {
         fade.active = false;
-        if (buf) {
-            wlr_scene_buffer_set_opacity(buf, 0.0f);
-            wlr_scene_node_set_enabled(&buf->node, false);
+        if (ov.node) {
+            wlr_scene_buffer_set_opacity(ov.node, 0.0f);
+            wlr_scene_node_set_enabled(&ov.node->node, false);
         }
         server->request_frame();
         return;
@@ -445,39 +387,12 @@ void Launcher::render() {
     double bg = white ? 1.0 : 0.0;
     double fg = white ? 0.0 : 1.0;
 
-    if (!pix || width != max_w || height != h) {
-        if (buf) {
-            wlr_scene_node_destroy(&buf->node);
-            buf = nullptr;
-        }
-        if (surf) {
-            cairo_surface_destroy(surf);
-            surf = nullptr;
-        }
-        if (pix) {
-            wlr_buffer_drop(&pix->base);
-            pix = nullptr;
-        }
-        pix = new PixBuf;
-        pix->data = (unsigned char *)malloc((size_t)max_w * h * 4);
-        if (!pix->data) {
-            delete pix;
-            pix = nullptr;
-            wlr_log(WLR_ERROR, "launcher: cannot allocate pixels");
-            return;
-        }
-        wlr_buffer_init(&pix->base, &pixbuf_impl, max_w, h);
-        surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, max_w, h);
-        buf = wlr_scene_buffer_create(server->scene_overlay, &pix->base);
-        if (!buf || !surf) {
-            wlr_log(WLR_ERROR, "launcher: cannot create buffer");
-            return;
-        }
-        width = max_w;
-        height = h;
+    if (!ov.ensure(server->scene_overlay, max_w, h)) {
+        wlr_log(WLR_ERROR, "launcher: cannot create buffer");
+        return;
     }
 
-    cairo_t *cr = cairo_create(surf);
+    cairo_t *cr = cairo_create(ov.surf);
     PangoLayout *layout = pango_cairo_create_layout(cr);
     pango_layout_set_font_description(layout, font_desc);
     std::string text = "> " + input + "_";
@@ -519,19 +434,10 @@ void Launcher::render() {
     g_object_unref(sub);
     g_object_unref(layout);
     cairo_destroy(cr);
-    copy_surface(surf, pix, w, h);
-
-    pixman_region32_t damage;
-    pixman_region32_init_rect(&damage, 0, 0, w, h);
-    wlr_scene_buffer_set_buffer_with_damage(buf, &pix->base, &damage);
-    pixman_region32_fini(&damage);
-
-    struct wlr_fbox src = {0, 0, (double)w, (double)h};
-    wlr_scene_buffer_set_source_box(buf, &src);
-    wlr_scene_buffer_set_dest_size(buf, w, h);
-    wlr_scene_node_set_position(&buf->node, (ow - w) / 2, (oh - BOX_HEIGHT) / 2);
-    wlr_scene_node_set_enabled(&buf->node, open || fade.active);
-    wlr_scene_buffer_set_opacity(buf, open ? 1.0f : 0.0f);
+    ov.commit(w, h);
+    wlr_scene_node_set_position(&ov.node->node, (ow - w) / 2, (oh - BOX_HEIGHT) / 2);
+    wlr_scene_node_set_enabled(&ov.node->node, open || fade.active);
+    wlr_scene_buffer_set_opacity(ov.node, open ? 1.0f : 0.0f);
 }
 
 void Launcher::relayout() {
@@ -548,9 +454,9 @@ void Launcher::reload() {
 }
 
 void Launcher::animate(uint64_t now) {
-    if (!fade.active || !buf) return;
+    if (!fade.active || !ov.node) return;
     float o = 0.0f;
     bool done = fade.step(now, &o);
-    wlr_scene_buffer_set_opacity(buf, o);
-    if (done && !open) wlr_scene_node_set_enabled(&buf->node, false);
+    wlr_scene_buffer_set_opacity(ov.node, o);
+    if (done && !open) wlr_scene_node_set_enabled(&ov.node->node, false);
 }

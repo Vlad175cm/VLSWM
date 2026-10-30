@@ -114,6 +114,9 @@ add_executable(vlswm
     src/output.cpp
     src/view.cpp
     src/launcher.cpp
+    src/osd.cpp
+    src/clipboard.cpp
+    src/overlay.cpp
     src/theme.cpp
     src/ini.cpp
     src/animation.cpp
