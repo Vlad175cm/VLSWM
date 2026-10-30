@@ -64,3 +64,6 @@ repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightn
 [xwayland]
 satellite = "xwayland-satellite"
 display = ":1"
+
+[output]
+scale = 1.0

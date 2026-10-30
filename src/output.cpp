@@ -82,7 +82,7 @@ Output *create_output(Server *server, struct wlr_output *wlr_output) {
         struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
         wlr_output_state_set_mode(&state, mode);
     }
-    wlr_output_state_set_scale(&state, 1.0f);
+    wlr_output_state_set_scale(&state, (float)server->settings.scale);
     wlr_output_state_set_transform(&state, WL_OUTPUT_TRANSFORM_NORMAL);
 
     if (!wlr_output_commit_state(wlr_output, &state)) {

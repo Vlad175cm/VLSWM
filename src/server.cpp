@@ -140,6 +140,7 @@ void Server::spawn(const std::string &cmd) {
 
 void Server::spawn_file_manager() {
     if (settings.terminal.empty() || settings.file_manager.empty()) return;
+    ensure_satellite();
     std::vector<std::string> argv = {settings.terminal};
     append_terminal_theme_args(this, argv);
     append_terminal_size_args(this, argv);
@@ -150,6 +151,7 @@ void Server::spawn_file_manager() {
 
 pid_t Server::spawn_terminal_command(const std::string &cmd) {
     if (settings.terminal.empty()) return 0;
+    ensure_satellite();
     std::vector<std::string> argv = {settings.terminal};
     append_terminal_theme_args(this, argv);
     append_terminal_size_args(this, argv);
@@ -242,6 +244,7 @@ void Server::start_terminal() {
 
 void Server::spawn_new_terminal() {
     if (settings.terminal.empty()) return;
+    ensure_satellite();
     std::vector<std::string> argv = {settings.terminal};
     append_terminal_theme_args(this, argv);
     append_terminal_size_args(this, argv);
@@ -259,8 +262,15 @@ void Server::terminal_gone() {
 
 void Server::start_satellite() {
     if (settings.satellite.empty()) return;
-    setenv("DISPLAY", settings.satellite_display.c_str(), true);
+    if (satellite_pid > 0) {
+        if (kill(satellite_pid, 0) == 0) return;
+        satellite_pid = 0;
+    }
     satellite_pid = spawn_argv({settings.satellite, settings.satellite_display});
+}
+
+void Server::ensure_satellite() {
+    start_satellite();
 }
 
 void Server::update_portal_env() {
@@ -292,6 +302,7 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
     bool consumed = kb->swallowed && kb->swallowed_keycode == event->keycode;
 
     if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+        if (server->satellite_pid == 0) server->ensure_satellite();
         xkb_layout_index_t layout = xkb_state_key_get_layout(keyboard->xkb_state, keycode);
         const xkb_keysym_t *base = nullptr;
         int n = xkb_keymap_key_get_syms_by_level(keyboard->keymap, keycode, layout, 0, &base);
@@ -917,7 +928,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     cursor = wlr_cursor_create();
     wlr_cursor_attach_output_layout(cursor, output_layout);
     cursor_mgr = wlr_xcursor_manager_create(nullptr, 24);
-    wlr_xcursor_manager_load(cursor_mgr, 1.0f);
+    wlr_xcursor_manager_load(cursor_mgr, (float)settings.scale);
 
     seat = wlr_seat_create(wl_display, "seat0");
 
@@ -974,7 +985,7 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     }
 
     terminal_setup_theme();
-    start_satellite();
+    setenv("DISPLAY", settings.satellite_display.c_str(), true);
     update_portal_env();
     start_terminal();
     spawn("command -v cliphist >/dev/null 2>&1 && wl-paste --watch cliphist store");
@@ -1094,6 +1105,11 @@ void Server::load_settings() {
         (uint64_t)std::max(config->get_int("launcher", "duration", 0), 0) * 1000000ULL;
     settings.satellite = config->get("xwayland", "satellite", "xwayland-satellite");
     settings.satellite_display = config->get("xwayland", "display", ":1");
+    try {
+        settings.scale = std::clamp(std::stod(config->get("output", "scale", "1.0")), 0.5, 3.0);
+    } catch (...) {
+        settings.scale = 1.0;
+    }
     settings.foot_dir = expand_home(config->get("theme", "foot", "~/.config/foot"));
 }
 
@@ -1205,6 +1221,7 @@ void Server::run_action(int idx) {
         case BindAction::NewTerminal: spawn_new_terminal(); break;
         case BindAction::RestartTerminal: restart_terminal(); break;
         case BindAction::Spawn:
+            ensure_satellite();
             spawn(b.cmd);
             show_osd(b.name, b.cmd);
             break;

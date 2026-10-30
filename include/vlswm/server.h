@@ -40,6 +40,7 @@ struct Settings {
     std::string satellite = "xwayland-satellite";
     std::string satellite_display = ":1";
     std::string foot_dir;
+    double scale = 1.0;
 };
 
 enum class BindAction {
@@ -169,6 +170,7 @@ struct Server {
     void spawn_new_terminal();
     void terminal_gone();
     void start_satellite();
+    void ensure_satellite();
     void update_portal_env();
     void foot_setup_theme();
     void terminal_setup_theme();

@@ -345,6 +345,7 @@ void Launcher::close() {
 }
 
 void Launcher::launch(const DesktopApp &app) {
+    server->ensure_satellite();
     if (app.terminal) {
         server->spawn_terminal_command(app.exec);
     } else {
