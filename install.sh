@@ -167,12 +167,14 @@ main() {
   echo -e "${GREEN}[3/7]${NC} Installing binaries to $INSTALL_DIR..."
   install -m 755 -s "$SCRIPT_DIR/build/vlswm" "$INSTALL_DIR/vlswm"
   install -m 755 -s "$SCRIPT_DIR/build/vlswmstat" "$INSTALL_DIR/vlswmstat"
+  install -m 755 "$SCRIPT_DIR/vlswm-update" "$INSTALL_DIR/vlswm-update"
   sudo -u "$REAL_USER" install -Dm755 "$SCRIPT_DIR/scripts/vlswm-record" \
     "$REAL_HOME/.local/bin/vlswm-record"
   sudo -u "$REAL_USER" install -Dm755 "$SCRIPT_DIR/scripts/vlswm-screenshot" \
     "$REAL_HOME/.local/bin/vlswm-screenshot"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswmstat"
+  echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm-update"
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-record"
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-screenshot"
 
@@ -273,6 +275,9 @@ FISHEOF
   echo -e "${YELLOW}Configuration:${NC}"
   echo -e "  Config file: $CONFIG_DIR/config"
   echo -e "  After editing, press SUPER+R to apply"
+  echo ""
+  echo -e "${YELLOW}Updates:${NC}"
+  echo -e "  sudo vlswm-update   # installs the latest GitHub release"
   echo ""
 }
 

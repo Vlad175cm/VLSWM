@@ -1,0 +1,71 @@
+#!/bin/bash
+# Reinstall vlswm from the latest GitHub release.
+# Always installs the newest release, even when it is already installed.
+# Usage: sudo vlswm-update
+
+set -e
+
+REPO="https://github.com/Vlad175cm/VLSWM.git"
+API="https://api.github.com/repos/Vlad175cm/VLSWM/releases/latest"
+SRC="/opt/vlswm"
+NEW="${SRC}.new"
+
+if [ "$EUID" -ne 0 ]; then
+    echo "Run with sudo: sudo vlswm-update" >&2
+    exit 1
+fi
+if ! command -v git >/dev/null 2>&1; then
+    echo "git is required" >&2
+    exit 1
+fi
+
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
+
+echo "==> Looking up the latest release"
+tag=""
+if command -v curl >/dev/null 2>&1; then
+    tag="$(curl -fsSL --max-time 20 "$API" 2>/dev/null |
+        grep -o '"tag_name": *"[^"]*"' | head -n 1 |
+        sed 's/.*"\(v[^"]*\)"/\1/')"
+fi
+if [ -z "$tag" ]; then
+    tag="$(git ls-remote --tags --refs "$REPO" 'v*' | awk -F/ '{print $NF}' |
+        sort -V | tail -n 1)"
+fi
+if [ -z "$tag" ]; then
+    echo "Cannot determine the latest release of $REPO" >&2
+    exit 1
+fi
+echo "    $tag"
+
+echo "==> Cloning $tag"
+rm -rf "$NEW"
+git clone --depth 1 --branch "$tag" "$REPO" "$NEW"
+
+echo "==> Building"
+cmake -B "$NEW/build" -S "$NEW" -DCMAKE_BUILD_TYPE=Release
+cmake --build "$NEW/build" -j"$(nproc)"
+
+echo "==> Installing"
+install -m 755 -s "$NEW/build/vlswm" /usr/bin/vlswm
+install -m 755 -s "$NEW/build/vlswmstat" /usr/bin/vlswmstat
+install -m 755 "$NEW/vlswm-update" /usr/bin/vlswm-update
+install -m 644 "$NEW/vlswm.desktop" /usr/share/wayland-sessions/vlswm.desktop
+install -Dm755 "$NEW/scripts/vlswm-record" /usr/bin/vlswm-record
+install -Dm755 "$NEW/scripts/vlswm-screenshot" /usr/bin/vlswm-screenshot
+
+if [ -n "$REAL_HOME" ] && [ -d "$REAL_HOME/.local/bin" ]; then
+    install -m 755 "$NEW/scripts/vlswm-record" "$REAL_HOME/.local/bin/vlswm-record"
+    install -m 755 "$NEW/scripts/vlswm-screenshot" "$REAL_HOME/.local/bin/vlswm-screenshot"
+    chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.local/bin/vlswm-record" \
+        "$REAL_HOME/.local/bin/vlswm-screenshot"
+fi
+
+echo "==> Replacing the source tree"
+rm -rf "$SRC"
+mv "$NEW" "$SRC"
+
+echo "==> Installed $(/usr/bin/vlswm --version) ($tag)"
+echo "    Config left untouched."
+echo "    Log out and back in to use the new binary."

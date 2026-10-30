@@ -1,71 +1,69 @@
 # vlswm
 
-Минимальная Wayland-оболочка на **wlroots 0.20** для Arch Linux. Рабочий стол — это терминал (foot), приложения открываются поверх него на весь экран. Только чёрный и белый, только прямые углы, без обоев.
+English | [Русский](README.ru.md)
 
-**Версия 1.0.0.**
+A minimal Wayland shell on **wlroots 0.20** for Arch Linux. The desktop is a terminal (foot); apps open on top of it, fullscreen. Only black and white, only square corners, no wallpaper.
 
-> Экспериментальный проект. Писался с помощью ИИ.
+**Version 1.1.**
 
-## Как это работает
+> Experimental project. Written with the help of AI.
 
-- При запуске сразу открывается **foot** на весь экран. Это базовый слой: закрыть его нельзя. Если он завершился (например, `exit` в fish), vlswm запускает его снова.
-- Любое приложение открывается **поверх** на весь экран. Окна лежат стопкой.
-- `SUPER+←` / `SUPER+→` переключает окна по кругу.
-- `SUPER+Q` закрывает сфокусированное окно. Базовый foot не закрывается.
-- `SUPER+ENTER` открывает новый терминал. Базовый (первый) терминал закрыть нельзя, новые окна закрываются через `SUPER+Q`.
-- `SUPER+D` открывает лаунчер: белый (или чёрный) прямоугольник по центру с полем ввода. Поиск идёт только по `.desktop`-файлам (имя, GenericName, имя файла), без учёта регистра. Под полем показывается одно лучшее совпадение; `Enter` запускает его. Если совпадения нет — подсказки нет и `Enter` ничего не делает. Приложения с `Terminal=true` откроются в отдельном окне foot. `Esc` отменяет.
-- `SUPER+T` переключает тему: чёрный ↔ белый. Меняются фон экрана, рамка и поле лаунчера. Тема foot тоже меняется во **всех** окнах терминала: vlswm посылает каждому окну `SIGUSR1` (чёрная) или `SIGUSR2` (белая), без закрытия.
-- Анимация окон: fade + подъём на 14 px при открытии и 10 px при закрытии, 200 мс. Лаунчер появляется мгновенно; `[launcher] duration` задаёт задержку в мс (0 — без анимации).
-- X11-приложения работают через `xwayland-satellite`.
+## How it works
 
-## Рекомендуемый браузер
+- On start **foot** opens fullscreen as the base layer: it cannot be closed. If it exits (for example `exit` in fish), vlswm starts it again.
+- Any app opens **on top**, fullscreen. Windows are stacked.
+- `SUPER+←` / `SUPER+→` cycles windows.
+- `SUPER+Q` closes the focused window. The base foot cannot be closed.
+- `SUPER+ENTER` opens a new terminal. The base (first) terminal cannot be closed; new windows are closed with `SUPER+Q`.
+- `SUPER+D` opens the launcher: a black (or white) rectangle in the center with an input field. Search only covers `.desktop` files (Name, GenericName, file name), case-insensitive. One best match is shown below the field; `Enter` launches it. If nothing matches, there is no suggestion and `Enter` does nothing. Apps with `Terminal=true` open in a separate foot window. `Esc` cancels.
+- `SUPER+T` toggles the theme: black ↔ white. The screen background, launcher frame and input field change. The foot theme changes in **all** terminal windows too: vlswm sends `SIGUSR1` (black) or `SIGUSR2` (white) to every window, without restarting it.
+- Window animation: fade + 14 px rise on open and 10 px on close, 200 ms. The launcher appears instantly; `[launcher] duration` sets its delay in ms (0 — no animation).
+- X11 apps work through `xwayland-satellite`, started on first use.
+- Volume, screen brightness and keyboard backlight changes show a minimal inverted-theme bar at the top of the screen.
 
-Для vlswm рекомендуем **zen-browser**. Он ведёт себя предсказуемо в окне на весь экран, а меню и popup-окна корректно работают после исправлений этого релиза. В конфиге по умолчанию он уже стоит на `SUPER+Z`.
+## Recommended browser
 
-## Приложения и цвета
+**zen-browser** is recommended for vlswm. It behaves predictably in a fullscreen window, and its menus and popups work correctly after the fixes in this release. It is bound to `SUPER+Z` in the default config.
 
-Переключение темы `SUPER+T` меняет цвета самого композитора, лаунчера и терминала foot. Другие приложения своих цветов композитор не трогает, поэтому они могут выглядеть неправильно: часть интерфейсов остаётся тёмной или светлой, часть использует собственную палитру. Если приложение выглядит некорректно, поменяйте его собственную тему.
+## Apps and colors
 
-## Зависимости
+`SUPER+T` changes the colors of the compositor, the launcher and the foot terminal. The compositor does not touch other apps, so they may look off: some interfaces stay dark or light, some use their own palette. If an app looks wrong, change its own theme.
+
+## Dependencies
 
 - wlroots 0.20
-- `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
+- `wlr-protocols` — protocol headers are generated from its XML at build time
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
-- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
-- Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
-- `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
+- Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume)
+- Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
+- `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
 
-## Сборка и установка
+## Build and install
 
 ```bash
 cmake -B build
 cmake --build build
 ```
 
-По умолчанию собирается **Release** с LTO. Бинарник: `build/vlswm`. Установка: `sudo ./install.sh` — скрипт собирает Release и кладёт в `/usr/bin` stripped-копии. Для отладки: `cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo`.
+Release with LTO is the default. Binary: `build/vlswm`. Install: `sudo ./install.sh` — it builds Release and installs stripped copies to `/usr/bin`. For debugging: `cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo`.
 
-CMake сам генерирует недостающие заголовки протоколов из `wlr-protocols` и создаёт совместимые копии заголовков wlroots, в которых C99-синтаксис `[static N]` заменён на `[N]` — иначе C++-компилятор на чистом Arch отказывается собирать проект. Если системный XML протокола отсутствует или пуст, используется копия из `protocols/` в репозитории.
+CMake generates the missing protocol headers from `wlr-protocols` and creates compatible copies of the wlroots headers where the C99 `[static N]` syntax is replaced with `[N]` — otherwise a C++ compiler on a clean Arch refuses to build the project. If a system protocol XML is missing or empty, the copy from `protocols/` in the repository is used.
 
-Запуск из TTY или из SDDM-сессии `vlswm`. Другой конфиг: `vlswm -c /путь/к/config`.
+Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c /path/to/config`.
 
-### Обновление
-
-Если ставил из git-клона, обновление — одна команда:
+### Updating
 
 ```bash
-cd vlswm
-sudo ./update.sh
+sudo vlswm-update
 ```
 
-Скрипт делает `git pull --ff-only` (если в дереве нет локальных правок), собирает Release и заменяет `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, скрипты записи/скриншотов и session-файл SDDM. Конфиг `~/.config/vlswm/config` не трогается. После обновления перезайди.
+The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, the recording/screenshot scripts and the SDDM session file. It re-clones and reinstalls even when that release is already installed. Your config is left untouched. Log out and back in to use the new binaries.
 
-Если ставил из архива, а не из git — распакуй новую версию поверх и запусти `sudo ./update.sh`; шаг с `git pull` будет пропущен.
+## Configuration
 
-## Конфигурация
+File: `~/.config/vlswm/config`. Reload without restarting: `SUPER+R`.
 
-Файл: `~/.config/vlswm/config`. Перечитать без перезапуска: `SUPER+R`.
-
-Комбинации записываются как `МОДИФИКАТОРЫ+КЛАВИША`. Модификаторы: `SUPER`, `SHIFT`, `CTRL`, `ALT`. Одно действие может иметь несколько клавиш через запятую.
+Combos are written as `MODIFIERS+KEY`. Modifiers: `SUPER`, `SHIFT`, `CTRL`, `ALT`. One action may have several keys separated by commas.
 
 ```ini
 [keybinds]
@@ -74,143 +72,145 @@ close = "SUPER+Q"
 reload = "SUPER+R"
 exit = "SUPER+ESC"
 theme = "SUPER+T"
-focus_prev = "SUPER+LEFT"
-focus_next = "SUPER+RIGHT"
+focus_prev = "SUPER+RIGHT"
+focus_next = "SUPER+LEFT"
 file_manager = "SUPER+E"
 restart_terminal = "SUPER+SHIFT+R"
-zen = "SUPER+Z"                 # приложение: ключ из [commands]
+clipboard = "SUPER+SHIFT+V"
+zen = "SUPER+Z"                 # app: a key from [commands]
 volume_up = "XF86AudioRaiseVolume, SUPER+F4"
 
 [commands]
-zen = "zen-browser"            # любое приложение: имя = команда
+zen = "zen-browser"            # any app: name = command
 volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
 
 [launcher]
 terminal = "foot"
 file_manager = "yazi"
 font = "JetBrainsMono Nerd Font 16"
-duration = 0                   # мс; 0 = без анимации
+duration = 0                   # ms; 0 = no animation
 
 [theme]
-foot = "~/.config/foot"        # каталог конфига foot
+foot = "~/.config/foot"        # foot config directory
 
 [animations]
-duration = 200                 # мс
+duration = 200                 # ms
 
 [input]
-repeat_delay = 200             # мс до первого повтора
-repeat_rate = 40               # повторов в секунду
-scroll_speed = 0.5             # множитель скорости прокрутки (тачпад и колесо)
-layout = "us,ru"               # раскладки клавиатуры
-layout_options = "grp:win_space_toggle"   # SUPER+SPACE переключает раскладку
-repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down"
+repeat_delay = 200             # ms before the first repeat
+repeat_rate = 40               # repeats per second
+scroll_speed = 0.5             # scroll speed multiplier (touchpad and wheel)
+layout = "us,ru"               # keyboard layouts
+layout_options = "grp:win_space_toggle"   # SUPER+SPACE switches the layout
+repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down, kbd_brightness_up, kbd_brightness_down"
 
 [xwayland]
 satellite = "xwayland-satellite"
 display = ":1"
 
 [output]
-scale = 1.0                   # масштаб интерфейса (1.0, 1.5, 2.0)
+scale = 1.0                   # interface scale (1.0, 1.5, 2.0)
 ```
 
-### Как добавить приложение на клавишу
+### Binding an app to a key
 
-1. В `[commands]` задайте имя и команду: `имя = "команда"`.
-2. В `[keybinds]` задайте то же имя и клавишу: `имя = "SUPER+X"`.
+1. In `[commands]` set a name and a command: `name = "command"`.
+2. In `[keybinds]` set the same name and a key: `name = "SUPER+X"`.
 
-Приложения при удержании клавиши не повторяются. Повторяются только действия из списка `[input] repeat`.
+Apps do not repeat while a key is held. Only actions listed in `[input] repeat` repeat.
 
-### Тема терминала (foot)
+### Terminal theme (foot)
 
-vlswm читает базовую палитру из `[colors-dark]` в `~/.config/foot/foot.ini`, создаёт `vlswm-theme.ini` с инвертированной палитрой в `[colors-light]` и добавляет в `foot.ini` строку `include=~/…/vlswm-theme.ini`. Базовая палитра перечитывается при старте и по `SUPER+R`, поэтому цвета в `[colors-dark]` имеют смысл. Файл `vlswm-theme.ini` генерируется и перезаписывается при каждом `SUPER+R`, редактировать его вручную бесполезно.
+vlswm reads the base palette from `[colors-dark]` in `~/.config/foot/foot.ini`, writes `vlswm-theme.ini` with the inverted palette in `[colors-light]` and adds an `include=~/…/vlswm-theme.ini` line to `foot.ini`. The base palette is re-read on start and on `SUPER+R`, so the colors in `[colors-dark]` matter. `vlswm-theme.ini` is generated and rewritten on every `SUPER+R`; editing it by hand is pointless.
 
-При `SUPER+T` vlswm посылает каждому окну foot `SIGUSR1` (чёрная тема) или `SIGUSR2` (белая). Это переключает уже открытые окна без перезапуска. Новые окна сразу стартуют в текущей теме через `initial-color-theme`.
+On `SUPER+T` vlswm sends `SIGUSR1` (black theme) or `SIGUSR2` (white) to every foot window. This switches already open windows without restarting them. New windows start in the current theme via `initial-color-theme`.
 
-Нужен foot 1.28 или новее: более старые версии не знают секции `[colors-dark]` / `[colors-light]`.
+foot 1.28 or newer is required: older versions do not know the `[colors-dark]` / `[colors-light]` sections.
 
-## Запись экрана
+## Screen recording
 
-`SUPER+ALT+R` запускает и останавливает запись через `wf-recorder` (VAAPI H.264, 30 fps, аудио по умолчанию). Файл: `~/Videos/review-*.mp4`.
+`SUPER+ALT+R` starts and stops recording with `wf-recorder` (VAAPI H.264, 30 fps, default audio). File: `~/Videos/review-*.mp4`.
 
 ```bash
-wf-recorder -f record.mp4     # весь экран, Ctrl+C — остановить
+wf-recorder -f record.mp4     # whole screen, Ctrl+C to stop
 ```
 
-Пишется только весь экран. Захват отдельных окон требует foreign-toplevel, которого в vlswm нет. Во время записи vlswm отключает direct scanout и композитит каждый кадр.
+Only the whole screen is recorded. Capturing individual windows requires foreign-toplevel, which vlswm does not implement. While recording vlswm disables direct scanout and composites every frame.
 
-## Скриншоты
+## Screenshots
 
-`SUPER+SHIFT+A` — выделить область (slurp), снять PNG (grim) и положить его в буфер (wl-copy). Файл: `~/Downloads/YYYY-MM-DD-HHMMSS.png`. `Esc` — отмена.
+`SUPER+SHIFT+A` — select a region (slurp), save a PNG (grim) and copy it to the clipboard (wl-copy). File: `~/Downloads/YYYY-MM-DD-HHMMSS.png`. `Esc` cancels.
 
-## История буфера обмена
+## Clipboard history
 
-`SUPER+SHIFT+V` открывает вертикальную панель по центру: ввод фильтрует записи, `↑`/`↓` — выбор, `Enter` — положить в буфер, `Esc` — закрыть. История хранится в `cliphist`.
+`SUPER+SHIFT+V` opens a vertical panel in the center: typing filters entries, `↑`/`↓` selects, `Enter` puts the entry into the clipboard, `Esc` closes. History is kept by `cliphist`.
 
-В начале сессии vlswm запускает `wl-paste --watch cliphist store`, поэтому копирование в любом приложении попадает в историю. Нужны `cliphist` и `wl-clipboard`.
+At session start vlswm runs `wl-paste --watch cliphist store`, so copying in any app lands in the history. `cliphist` and `wl-clipboard` are required.
 
 ## vlswmstat
 
-`vlswmstat` — компактный монохромный дашборд: hostname, дистрибутив, ядро, uptime, shell, терминал, CPU, память, диски, сеть, датчики, батарея и данные VLSWM. Большие часы и дата обновляются каждую секунду.
+`vlswmstat` is a compact monochrome dashboard: hostname, distro, kernel, uptime, shell, terminal, CPU, memory, disks, network, sensors, battery and VLSWM data. The large clock and date update every second.
 
 ```bash
-vlswmstat           # живой дашборд, выход по q или Esc
-vlswmstat --once    # один кадр и выход
+vlswmstat           # live dashboard, quit with q or Esc
+vlswmstat --once    # one frame and exit
 vlswmstat --version
 ```
 
-Клавиши: `q` / `Esc` — выход, `r` — обновить, изменение размера окна подхватывается автоматически.
+Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automatically.
 
-При установке `install.sh` добавляет `~/.config/fish/conf.d/vlswmstat.fish`, поэтому дашборд показывается при старте базового терминала как приветствие. В новых терминалах (`SUPER+ENTER`) приветствия нет. Чтобы отключить, закомментируйте строку `vlswmstat` в этом файле.
+`install.sh` adds `~/.config/fish/conf.d/vlswmstat.fish`, so the dashboard is shown as a greeting when the base terminal starts. New terminals (`SUPER+ENTER`) have no greeting. To disable it, comment out the `vlswmstat` line in that file.
 
-## Клавиши по умолчанию
+## Default keybindings
 
-| Клавиши | Действие |
+| Keys | Action |
 |---|---|
-| `SUPER+D` | лаунчер |
-| `SUPER+ENTER` | новый терминал |
-| `SUPER+Q` | закрыть сфокусированное окно |
-| `SUPER+←` / `SUPER+→` | переключить окно |
-| `SUPER+T` | чёрный / белый |
-| `SUPER+SPACE` | переключить раскладку (us / ru) |
-| `SUPER+E` | файловый менеджер (yazi в отдельном окне foot) |
+| `SUPER+D` | launcher |
+| `SUPER+ENTER` | new terminal |
+| `SUPER+Q` | close the focused window |
+| `SUPER+←` / `SUPER+→` | cycle windows |
+| `SUPER+T` | black / white theme |
+| `SUPER+SPACE` | switch layout (us / ru) |
+| `SUPER+E` | file manager (yazi in a separate foot window) |
 | `SUPER+Z` | zen-browser |
-| `SUPER+ALT+R` | начать / остановить запись экрана |
-| `SUPER+SHIFT+A` | скриншот выделенной области |
-| `SUPER+SHIFT+V` | история буфера обмена |
-| `SUPER+SHIFT+R` | перезапустить базовый терминал (сброс до fish) |
-| `SUPER+R` | перечитать конфиг |
-| `SUPER+ESC` | выход |
-| `SUPER+F1` / `SUPER+F2` | яркость −/+ |
-| `SUPER+F3` / `SUPER+F4` | громкость −/+ |
+| `SUPER+ALT+R` | start / stop screen recording |
+| `SUPER+SHIFT+A` | screenshot of a selected region |
+| `SUPER+SHIFT+V` | clipboard history |
+| `SUPER+SHIFT+R` | restart the base terminal (reset to fish) |
+| `SUPER+R` | reload the config |
+| `SUPER+ESC` | exit |
+| `SUPER+F1` / `SUPER+F2` | brightness −/+ |
+| `SUPER+F3` / `SUPER+F4` | volume −/+ |
 
-## Структура
+## Structure
 
-- `src/main.cpp` — запуск, лог, аргументы.
-- `src/server.cpp` — ввод, привязки, стек окон, процессы, xwayland-satellite.
-- `src/view.cpp` — окна (xdg), открытие и закрытие.
-- `src/launcher.cpp` — лаунчер (cairo + pango).
-- `src/osd.cpp` — оверлей громкости и яркости.
-- `src/clipboard.cpp` — пикер истории буфера.
-- `src/overlay.cpp` — общий буфер для лаунчера, OSD и пикера.
-- `src/theme.cpp` — тема foot.
-- `src/vlswmstat.cpp` — дашборд `vlswmstat`.
-- `src/output.cpp`, `src/ini.cpp`, `src/animation.cpp` — выход, конфиг, анимации.
-- `scripts/vlswm-record` — запись экрана через wf-recorder.
-- `scripts/vlswm-screenshot` — выделение области и скриншот.
+- `src/main.cpp` — startup, log, arguments.
+- `src/server.cpp` — input, bindings, window stack, processes, xwayland-satellite.
+- `src/view.cpp` — windows (xdg), open and close.
+- `src/launcher.cpp` — launcher (cairo + pango).
+- `src/osd.cpp` — volume and brightness overlay.
+- `src/clipboard.cpp` — clipboard history picker.
+- `src/overlay.cpp` — shared buffer for the launcher, OSD and picker.
+- `src/theme.cpp` — foot theme.
+- `src/vlswmstat.cpp` — the `vlswmstat` dashboard.
+- `src/output.cpp`, `src/ini.cpp`, `src/animation.cpp` — output, config, animations.
+- `scripts/vlswm-record` — screen recording via wf-recorder.
+- `scripts/vlswm-screenshot` — region selection and screenshot.
+- `vlswm-update` — installs the latest release.
 
-## Батарея
+## Battery
 
-На ноутбуках TLP на батарее выставляет `CPU_SCALING_GOVERNOR_ON_BAT=powersave`. С драйвером `intel_cpufreq` (intel_pstate в passive-режиме, как на старых Intel) такой говернор держит минимальную частоту даже под полной нагрузкой: 800 МГц вместо 2.9 ГГц turbo. Вся система становится в 3–4 раза медленнее, и приложения запускаются заметно дольше.
+On laptops TLP sets `CPU_SCALING_GOVERNOR_ON_BAT=powersave` on battery. With the `intel_cpufreq` driver (intel_pstate in passive mode, as on older Intel CPUs) that governor keeps the minimum frequency even under full load: 800 MHz instead of 2.9 GHz turbo. The whole system becomes 3–4 times slower and apps take much longer to start.
 
-Для интерактивной работы нужен `schedutil` и включённый turbo. В `/etc/tlp.conf`:
+Interactive work needs `schedutil` and turbo enabled. In `/etc/tlp.conf`:
 
 ```ini
 CPU_SCALING_GOVERNOR_ON_BAT=schedutil
 CPU_BOOST_ON_BAT=1
 ```
 
-TLP читает `/etc/tlp.conf` последним, поэтому значения из `/etc/tlp.d/*.conf` эти строки не переопределят. Применить: `sudo tlp start`. В простое schedutil всё равно опускает частоту до минимума, так что расход в покое не растёт.
+TLP reads `/etc/tlp.conf` last, so values in `/etc/tlp.d/*.conf` will not override these lines. Apply with `sudo tlp start`. At idle schedutil still drops to the minimum frequency, so idle power draw does not grow.
 
-## Лицензия
+## License
 
-См. файл `LICENSE`.
+See the `LICENSE` file.
