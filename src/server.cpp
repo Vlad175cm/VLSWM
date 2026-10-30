@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -136,6 +137,22 @@ pid_t Server::spawn_argv(const std::vector<std::string> &argv) {
 
 void Server::spawn(const std::string &cmd) {
     spawn_argv({"/bin/sh", "-c", cmd});
+}
+
+void Server::run_sync(const std::string &cmd) {
+    pid_t pid = 0;
+    const char *argv[] = {"/bin/sh", "-c", cmd.c_str(), nullptr};
+    if (posix_spawn(&pid, "/bin/sh", nullptr, nullptr, (char *const *)argv, environ) != 0) {
+        return;
+    }
+    int status = 0;
+    while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {
+    }
+}
+
+static bool is_osd_action(const std::string &name) {
+    return name.rfind("volume", 0) == 0 || name == "brightness_up" ||
+           name == "brightness_down" || name.rfind("kbd_brightness", 0) == 0;
 }
 
 void Server::spawn_file_manager() {
@@ -1168,8 +1185,6 @@ void Server::load_bindings() {
         else if (action == "theme") type = BindAction::Theme;
         else if (action == "focus_next") type = BindAction::FocusNext;
         else if (action == "focus_prev") type = BindAction::FocusPrev;
-        else if (action == "swap_next") type = BindAction::SwapNext;
-        else if (action == "swap_prev") type = BindAction::SwapPrev;
         else if (config->values.count("commands." + action)) {
             cmd = config->values.at("commands." + action);
         } else {
@@ -1212,8 +1227,6 @@ void Server::run_action(int idx) {
         case BindAction::Reload: reload_config(); break;
         case BindAction::FocusNext: cycle_next(); break;
         case BindAction::FocusPrev: cycle_prev(); break;
-        case BindAction::SwapNext: swap_views(1); break;
-        case BindAction::SwapPrev: swap_views(-1); break;
         case BindAction::Theme: set_theme(!theme_white); break;
         case BindAction::Launcher: launcher->toggle(); break;
         case BindAction::Clipboard: clipboard->toggle(); break;
@@ -1222,8 +1235,12 @@ void Server::run_action(int idx) {
         case BindAction::RestartTerminal: restart_terminal(); break;
         case BindAction::Spawn:
             ensure_satellite();
-            spawn(b.cmd);
-            show_osd(b.name, b.cmd);
+            if (is_osd_action(b.name)) {
+                run_sync(b.cmd);
+                show_osd(b.name, b.cmd);
+            } else {
+                spawn(b.cmd);
+            }
             break;
     }
 }
@@ -1327,21 +1344,6 @@ void Server::cycle_prev() {
     request_frame();
 }
 
-void Server::swap_views(int dir) {
-    View *top = top_view();
-    if (!top || stack.size() < 2) return;
-    auto it = std::find(stack.begin(), stack.end(), top);
-    if (it == stack.end()) return;
-    size_t i = (size_t)(it - stack.begin());
-    size_t j = dir > 0 ? (i + 1) % stack.size()
-                       : (i + stack.size() - 1) % stack.size();
-    if (i == j) return;
-    std::swap(stack[i], stack[j]);
-    focus_top();
-    update_visibility();
-    request_frame();
-}
-
 void Server::restart_terminal() {
     for (auto *v : stack) {
         if (!v->terminal) continue;
@@ -1391,7 +1393,6 @@ static int first_int(const std::string &s) {
 
 void Server::show_osd(const std::string &action, const std::string &cmd) {
     if (!osd) return;
-    char text[96];
 
     if (action.rfind("volume", 0) == 0) {
         std::string out = run_capture("wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null");
@@ -1399,22 +1400,13 @@ void Server::show_osd(const std::string &action, const std::string &cmd) {
         bool muted = out.find("MUTED") != std::string::npos;
         size_t p = out.find(':');
         double v = p == std::string::npos ? 0.0 : atof(out.c_str() + p + 1);
-        if (muted) {
-            snprintf(text, sizeof(text), "MUTED");
-            osd->show(text, 0.0);
-        } else {
-            snprintf(text, sizeof(text), "VOLUME %d%%", (int)lround(v * 100.0));
-            osd->show(text, v);
-        }
+        osd->show(muted ? 0.0 : v);
         return;
     }
 
-    std::string label;
     std::string device;
     if (action == "brightness_up" || action == "brightness_down") {
-        label = "BRIGHTNESS";
     } else if (action.rfind("kbd_brightness", 0) == 0) {
-        label = "KEYBOARD";
         size_t p = cmd.find("--device=");
         if (p != std::string::npos) {
             size_t b = p + 9;
@@ -1435,9 +1427,7 @@ void Server::show_osd(const std::string &action, const std::string &cmd) {
     if (!device.empty()) base += "--device='" + device + "' ";
     int cur = first_int(run_capture(base + "g 2>/dev/null"));
     int max = first_int(run_capture(base + "m 2>/dev/null"));
-    double v = max > 0 ? (double)cur / (double)max : 0.0;
-    snprintf(text, sizeof(text), "%s %d%%", label.c_str(), (int)lround(v * 100.0));
-    osd->show(text, v);
+    osd->show(max > 0 ? (double)cur / (double)max : 0.0);
 }
 
 void Server::set_theme(bool white) {

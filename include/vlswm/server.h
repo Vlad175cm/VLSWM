@@ -49,8 +49,6 @@ enum class BindAction {
     Reload,
     FocusNext,
     FocusPrev,
-    SwapNext,
-    SwapPrev,
     Theme,
     Launcher,
     Clipboard,
@@ -163,6 +161,7 @@ struct Server {
     void start_repeat(const Repeat &r);
     void stop_repeat(uint32_t keycode);
     void spawn(const std::string &cmd);
+    void run_sync(const std::string &cmd);
     pid_t spawn_argv(const std::vector<std::string> &argv);
     void spawn_file_manager();
     pid_t spawn_terminal_command(const std::string &cmd);
@@ -183,7 +182,6 @@ struct Server {
     void focus_top();
     void cycle_next();
     void cycle_prev();
-    void swap_views(int dir);
     void close_top();
     void close_view(View *view);
     void restart_terminal();
