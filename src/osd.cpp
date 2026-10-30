@@ -47,7 +47,7 @@ void Osd::render() {
 
 void Osd::show(double fraction) {
     value = fraction;
-    hide_at = anim_now_ns() + 1500ULL * 1000000ULL;
+    hide_at = anim_now_ns() + 800ULL * 1000000ULL;
     visible = true;
     render();
     if (ov.node) wlr_scene_node_set_enabled(&ov.node->node, true);
