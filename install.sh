@@ -1,5 +1,6 @@
 #!/bin/bash
 # vlswm installation script
+# Arch Linux / Arch-based only.
 # Installs dependencies (build + runtime), builds vlswm, then installs the binary, config and SDDM session.
 
 set -e
@@ -13,80 +14,30 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-map_distro_choice() {
-  case "$1" in
-  1 | arch | Arch) echo "arch" ;;
-  2 | fedora | Fedora) echo "fedora" ;;
-  3 | debian | Debian | ubuntu | Ubuntu) echo "debian" ;;
-  4 | opensuse | openSUSE | suse | SUSE) echo "opensuse" ;;
-  *) echo "" ;;
+require_arch() {
+  if [ ! -r /etc/os-release ]; then
+    echo -e "${RED}Error: vlswm supports Arch Linux and Arch-based distributions only.${NC}" >&2
+    exit 1
+  fi
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  case "${ID:-} ${ID_LIKE:-}" in
+  *arch*) ;;
+  *)
+    echo -e "${RED}Error: vlswm supports Arch Linux and Arch-based distributions only.${NC}" >&2
+    echo -e "${RED}Detected: ${PRETTY_NAME:-unknown}${NC}" >&2
+    exit 1
+    ;;
   esac
 }
 
 install_dependencies() {
-  local distro="$1"
-  case "$distro" in
-  arch)
-    pacman -S --needed --noconfirm wayland wlroots0.20 wayland-protocols \
-      libxkbcommon pixman libinput cairo pango wlr-protocols \
-      pkgconf cmake make gcc \
-      foot fish xwayland-satellite \
-      grim slurp wl-clipboard wf-recorder cliphist \
-      brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa
-    ;;
-  fedora)
-    dnf install -y wayland-devel wlroots-devel xkbcommon-devel \
-      pixman-devel libinput-devel cairo-devel pango-devel wlr-protocols-devel \
-      pkgconf-pkg-config cmake gcc-c++ make \
-      fish foot brightnessctl pipewire wireplumber sddm jetbrains-mono-fonts \
-      mesa-dri-drivers mesa-libGL grim slurp wl-clipboard wf-recorder cliphist
-    warn_manual_install
-    ;;
-  debian)
-    apt-get update
-    apt-get install -y libwlroots-dev libwayland-dev wayland-protocols \
-      libxkbcommon-dev libpixman-1-dev libinput-dev \
-      libcairo2-dev libpango1.0-dev \
-      pkg-config cmake g++ make \
-      fish foot brightnessctl pipewire wireplumber sddm fonts-jetbrains-mono \
-      libgl1-mesa-dri grim slurp wl-clipboard wf-recorder cliphist
-    warn_manual_install
-    ;;
-  opensuse)
-    zypper install -y wlroots-devel wayland-devel libxkbcommon-devel \
-      pixman-devel libinput-devel cairo-devel pango-devel \
-      wlr-protocols-devel pkg-config cmake gcc-c++ make \
-      fish foot brightnessctl pipewire wireplumber sddm \
-      jetbrains-mono-fonts Mesa Mesa-libGL1 grim slurp wl-clipboard wf-recorder cliphist
-    warn_manual_install
-    ;;
-  *)
-    echo -e "${RED}Error: unknown distro '$distro'${NC}" >&2
-    return 1
-    ;;
-  esac
-}
-
-warn_manual_install() {
-  echo -e "${YELLOW}xwayland-satellite is not in the official repositories of this distro.${NC}"
-  echo -e "${YELLOW}Install it manually; vlswm uses it at runtime for X11 apps.${NC}"
-}
-
-ask_distro() {
-  echo -e "${YELLOW}Which distro are you using?${NC}" >&2
-  echo "  1) Arch" >&2
-  echo "  2) Fedora" >&2
-  echo "  3) Debian / Ubuntu" >&2
-  echo "  4) openSUSE" >&2
-  local choice="" distro=""
-  while [ -z "$distro" ]; do
-    read -rp "Enter the number or name: " choice
-    distro="$(map_distro_choice "$choice")"
-    if [ -z "$distro" ]; then
-      echo -e "${RED}Invalid selection, try again.${NC}" >&2
-    fi
-  done
-  echo "$distro"
+  pacman -S --needed --noconfirm wayland wlroots0.20 wayland-protocols \
+    libxkbcommon pixman libinput cairo pango wlr-protocols \
+    pkgconf cmake make gcc \
+    foot fish xwayland-satellite \
+    grim slurp wl-clipboard wf-recorder cliphist \
+    brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa
 }
 
 check_runtime_tools() {
@@ -121,9 +72,8 @@ main() {
   ENV_DIR="$REAL_HOME/.config/environment.d"
 
   echo -e "${GREEN}[1/7]${NC} Installing dependencies..."
-  DISTRO="$(ask_distro)"
-  echo -e "  Installing dependencies for ${GREEN}$DISTRO${NC}..."
-  install_dependencies "$DISTRO"
+  require_arch
+  install_dependencies
 
   if [ ! -f "$SCRIPT_DIR/config/config" ]; then
     echo -e "${RED}Error: Config not found in $SCRIPT_DIR/config/${NC}"
