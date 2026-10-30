@@ -4,10 +4,11 @@
 
 #include <algorithm>
 
-static const int OSD_W = 260;
-static const int OSD_H = 12;
+static const int OSD_W = 360;
+static const int OSD_H = 20;
 static const int OSD_MARGIN = 24;
 static const int OSD_INSET = 2;
+static const int OSD_BAR_H = 4;
 
 static void output_size(Server *server, int *w, int *h) {
     *w = 0;
@@ -34,8 +35,8 @@ void Osd::render() {
     double fill = std::clamp(value, 0.0, 1.0);
     if (fill > 0.0) {
         cairo_set_source_rgb(cr, fg, fg, fg);
-        cairo_rectangle(cr, OSD_INSET, OSD_INSET,
-                        (OSD_W - OSD_INSET * 2) * fill, OSD_H - OSD_INSET * 2);
+        cairo_rectangle(cr, OSD_INSET, (OSD_H - OSD_BAR_H) / 2,
+                        (OSD_W - OSD_INSET * 2) * fill, OSD_BAR_H);
         cairo_fill(cr);
     }
 
