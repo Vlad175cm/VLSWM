@@ -28,8 +28,6 @@ struct Launcher {
     bool open = false;
     bool initialized = false;
     std::string input;
-    std::string error;
-    uint64_t error_until = 0;
     FadeAnim fade;
     struct PixBuf *pix = nullptr;
     cairo_surface_t *surf = nullptr;
@@ -52,5 +50,6 @@ struct Launcher {
     bool busy() const;
     void scan_apps();
     bool apps_changed();
-    bool launch(const std::string &text);
+    const DesktopApp *suggestion() const;
+    void launch(const DesktopApp &app);
 };

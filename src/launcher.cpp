@@ -17,9 +17,9 @@
 #include <unistd.h>
 
 static const int BOX_HEIGHT = 56;
+static const int ROW_HEIGHT = 34;
 static const int BORDER = 2;
 static const int PADDING = 16;
-static const uint64_t ERROR_MS = 1500;
 
 struct PixBuf {
     struct wlr_buffer base;
@@ -332,7 +332,28 @@ void Launcher::init(Server *s) {
 }
 
 bool Launcher::busy() const {
-    return fade.active || error_until != 0;
+    return fade.active;
+}
+
+const DesktopApp *Launcher::suggestion() const {
+    std::string q = lower(trim(input));
+    if (q.empty()) return nullptr;
+    const DesktopApp *best = nullptr;
+    int best_score = 4;
+    size_t best_len = SIZE_MAX;
+    for (const auto &app : apps) {
+        size_t pos = app.match.find(q);
+        if (pos == std::string::npos) continue;
+        int score = 3;
+        if (pos == 0) score = app.match.size() == q.size() ? 0 : 1;
+        else if (app.match[pos - 1] == ' ') score = 2;
+        if (score > best_score) continue;
+        if (score == best_score && app.name.size() >= best_len) continue;
+        best = &app;
+        best_score = score;
+        best_len = app.name.size();
+    }
+    return best;
 }
 
 void Launcher::toggle() {
@@ -342,8 +363,6 @@ void Launcher::toggle() {
     }
     open = true;
     input.clear();
-    error.clear();
-    error_until = 0;
     if (!initialized) {
         initialized = true;
         font_desc = pango_font_description_from_string(server->settings.font.c_str());
@@ -367,8 +386,6 @@ void Launcher::toggle() {
 void Launcher::close() {
     if (!open) return;
     open = false;
-    error.clear();
-    error_until = 0;
 
     if (server->settings.launcher_duration_ns == 0) {
         fade.active = false;
@@ -385,55 +402,26 @@ void Launcher::close() {
     server->request_frame();
 }
 
-bool Launcher::launch(const std::string &text) {
-    std::string norm = lower(trim(text));
-    if (norm.empty()) return false;
-
-    for (const auto &app : apps) {
-        if (app.match != norm) continue;
-        std::string base = first_token(app.exec);
-        size_t slash = base.find_last_of('/');
-        if (slash != std::string::npos) base = base.substr(slash + 1);
-        if (lower(base) == lower(server->settings.terminal)) return false;
-
-        if (app.terminal) {
-            server->spawn_terminal_command(app.exec);
-        } else {
-            server->spawn_argv({"/bin/sh", "-c", app.exec});
-        }
-        return true;
+void Launcher::launch(const DesktopApp &app) {
+    if (app.terminal) {
+        server->spawn_terminal_command(app.exec);
+    } else {
+        server->spawn_argv({"/bin/sh", "-c", app.exec});
     }
-
-    std::string cmd = first_token(text);
-    std::string base = cmd;
-    size_t slash = base.find_last_of('/');
-    if (slash != std::string::npos) base = base.substr(slash + 1);
-    if (lower(base) == lower(server->settings.terminal)) return false;
-    if (!command_exists(cmd)) return false;
-    server->spawn_argv({"fish", "-c", text});
-    return true;
 }
 
 void Launcher::key(xkb_keysym_t sym, const std::string &utf8) {
     if (!open) return;
-    error.clear();
-    error_until = 0;
 
     if (sym == XKB_KEY_Escape) {
         close();
         return;
     }
     if (sym == XKB_KEY_Return || sym == XKB_KEY_KP_Enter) {
-        std::string text = trim(input);
-        if (text.empty()) return;
-        if (launch(text)) {
-            close();
-        } else {
-            error = "not found: " + text;
-            error_until = anim_now_ns() + ERROR_MS * 1000000ULL;
-            render();
-            server->request_frame();
-        }
+        const DesktopApp *app = suggestion();
+        if (!app) return;
+        launch(*app);
+        close();
         return;
     }
     if (sym == XKB_KEY_BackSpace) {
@@ -450,7 +438,8 @@ void Launcher::key(xkb_keysym_t sym, const std::string &utf8) {
 void Launcher::render() {
     int ow = 0, oh = 0;
     output_size(server, &ow, &oh);
-    int h = BOX_HEIGHT;
+    const DesktopApp *app = suggestion();
+    int h = BOX_HEIGHT + (app ? ROW_HEIGHT : 0);
     int max_w = std::max(320, ow - 80);
     bool white = server->theme_white;
     double bg = white ? 1.0 : 0.0;
@@ -491,11 +480,20 @@ void Launcher::render() {
     cairo_t *cr = cairo_create(surf);
     PangoLayout *layout = pango_cairo_create_layout(cr);
     pango_layout_set_font_description(layout, font_desc);
-    std::string text = error.empty() ? "> " + input + "_" : error;
+    std::string text = "> " + input + "_";
     pango_layout_set_text(layout, text.c_str(), -1);
     int tw = 0, th = 0;
     pango_layout_get_pixel_size(layout, &tw, &th);
-    int w = std::clamp(tw + PADDING * 2 + BORDER * 2, 320, max_w);
+
+    PangoLayout *sub = pango_cairo_create_layout(cr);
+    pango_layout_set_font_description(sub, font_desc);
+    int sw = 0, sh = 0;
+    if (app) {
+        pango_layout_set_text(sub, app->name.c_str(), -1);
+        pango_layout_get_pixel_size(sub, &sw, &sh);
+    }
+
+    int w = std::clamp(std::max(tw, sw) + PADDING * 2 + BORDER * 2, 320, max_w);
 
     cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
     cairo_set_source_rgb(cr, bg, bg, bg);
@@ -506,9 +504,19 @@ void Launcher::render() {
     cairo_set_line_width(cr, BORDER);
     cairo_rectangle(cr, BORDER / 2.0, BORDER / 2.0, w - BORDER, h - BORDER);
     cairo_stroke(cr);
-    cairo_set_source_rgb(cr, fg, fg, fg);
-    cairo_move_to(cr, PADDING, (h - th) / 2.0);
+    cairo_move_to(cr, PADDING, (BOX_HEIGHT - th) / 2.0);
     pango_cairo_show_layout(cr, layout);
+
+    if (app) {
+        cairo_set_line_width(cr, 1);
+        cairo_move_to(cr, BORDER, BOX_HEIGHT);
+        cairo_line_to(cr, w - BORDER, BOX_HEIGHT);
+        cairo_stroke(cr);
+        cairo_move_to(cr, PADDING, BOX_HEIGHT + (ROW_HEIGHT - sh) / 2.0);
+        pango_cairo_show_layout(cr, sub);
+    }
+
+    g_object_unref(sub);
     g_object_unref(layout);
     cairo_destroy(cr);
     copy_surface(surf, pix, w, h);
@@ -521,7 +529,7 @@ void Launcher::render() {
     struct wlr_fbox src = {0, 0, (double)w, (double)h};
     wlr_scene_buffer_set_source_box(buf, &src);
     wlr_scene_buffer_set_dest_size(buf, w, h);
-    wlr_scene_node_set_position(&buf->node, (ow - w) / 2, (oh - h) / 2);
+    wlr_scene_node_set_position(&buf->node, (ow - w) / 2, (oh - BOX_HEIGHT) / 2);
     wlr_scene_node_set_enabled(&buf->node, open || fade.active);
     wlr_scene_buffer_set_opacity(buf, open ? 1.0f : 0.0f);
 }
@@ -540,11 +548,6 @@ void Launcher::reload() {
 }
 
 void Launcher::animate(uint64_t now) {
-    if (error_until && now >= error_until) {
-        error_until = 0;
-        error.clear();
-        render();
-    }
     if (!fade.active || !buf) return;
     float o = 0.0f;
     bool done = fade.step(now, &o);

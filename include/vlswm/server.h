@@ -46,6 +46,8 @@ enum class BindAction {
     Reload,
     FocusNext,
     FocusPrev,
+    SwapNext,
+    SwapPrev,
     Theme,
     Launcher,
     FileManager,
@@ -126,6 +128,7 @@ struct Server {
 
     struct wl_listener new_output = {};
     struct wl_listener new_input = {};
+    struct wl_listener new_virtual_keyboard = {};
     struct wl_listener new_xdg_surface = {};
     struct wl_listener new_layer_surface = {};
     struct wl_listener new_decoration = {};
@@ -172,6 +175,7 @@ struct Server {
     void focus_top();
     void cycle_next();
     void cycle_prev();
+    void swap_views(int dir);
     void close_top();
     void close_view(View *view);
     void restart_terminal();

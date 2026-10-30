@@ -451,6 +451,14 @@ static void handle_new_input(wl_listener *listener, void *data) {
     wlr_seat_set_capabilities(server->seat, caps);
 }
 
+static void handle_new_virtual_keyboard(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, new_virtual_keyboard);
+    struct wlr_virtual_keyboard_v1 *vk = (struct wlr_virtual_keyboard_v1 *)data;
+    server_new_keyboard(server, &vk->keyboard.base);
+    wlr_seat_set_capabilities(server->seat,
+                              WL_SEAT_CAPABILITY_POINTER | WL_SEAT_CAPABILITY_KEYBOARD);
+}
+
 static void handle_new_output(wl_listener *listener, void *data) {
     Server *server = wl_container_of(listener, server, new_output);
     struct wlr_output *wlr_output = (struct wlr_output *)data;
@@ -868,6 +876,12 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wlr_data_device_manager_create(wl_display);
     wlr_data_control_manager_v1_create(wl_display);
     wlr_primary_selection_v1_device_manager_create(wl_display);
+    {
+        struct wlr_virtual_keyboard_manager_v1 *vk_mgr =
+            wlr_virtual_keyboard_manager_v1_create(wl_display);
+        new_virtual_keyboard.notify = handle_new_virtual_keyboard;
+        wl_signal_add(&vk_mgr->events.new_virtual_keyboard, &new_virtual_keyboard);
+    }
 
     output_layout = wlr_output_layout_create(wl_display);
     wlr_xdg_output_manager_v1_create(wl_display, output_layout);
@@ -1119,6 +1133,8 @@ void Server::load_bindings() {
         else if (action == "theme") type = BindAction::Theme;
         else if (action == "focus_next") type = BindAction::FocusNext;
         else if (action == "focus_prev") type = BindAction::FocusPrev;
+        else if (action == "swap_next") type = BindAction::SwapNext;
+        else if (action == "swap_prev") type = BindAction::SwapPrev;
         else if (config->values.count("commands." + action)) {
             cmd = config->values.at("commands." + action);
         } else {
@@ -1160,6 +1176,8 @@ void Server::run_action(int idx) {
         case BindAction::Reload: reload_config(); break;
         case BindAction::FocusNext: cycle_next(); break;
         case BindAction::FocusPrev: cycle_prev(); break;
+        case BindAction::SwapNext: swap_views(1); break;
+        case BindAction::SwapPrev: swap_views(-1); break;
         case BindAction::Theme: set_theme(!theme_white); break;
         case BindAction::Launcher: launcher->toggle(); break;
         case BindAction::FileManager: spawn_file_manager(); break;
@@ -1263,6 +1281,21 @@ void Server::cycle_prev() {
     if (it == stack.end()) return;
     stack.erase(it);
     stack.push_back(bottom);
+    focus_top();
+    update_visibility();
+    request_frame();
+}
+
+void Server::swap_views(int dir) {
+    View *top = top_view();
+    if (!top || stack.size() < 2) return;
+    auto it = std::find(stack.begin(), stack.end(), top);
+    if (it == stack.end()) return;
+    size_t i = (size_t)(it - stack.begin());
+    size_t j = dir > 0 ? (i + 1) % stack.size()
+                       : (i + stack.size() - 1) % stack.size();
+    if (i == j) return;
+    std::swap(stack[i], stack[j]);
     focus_top();
     update_visibility();
     request_frame();
