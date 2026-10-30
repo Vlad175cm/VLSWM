@@ -34,6 +34,16 @@ static volatile sig_atomic_t g_quit = 0;
 static void on_winch(int) { g_resize = 1; }
 static void on_quit(int) { g_quit = 1; }
 
+// Install without SA_RESTART so a resize interrupts poll() and the dashboard
+// redraws at the new size immediately instead of after the 1 s refresh tick.
+static void install_handler(int sig, void (*handler)(int)) {
+    struct sigaction sa = {};
+    sa.sa_handler = handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(sig, &sa, nullptr);
+}
+
 static std::string trim(const std::string &s) {
     size_t b = s.find_first_not_of(" \t\r\n");
     if (b == std::string::npos) return "";
@@ -694,10 +704,24 @@ int main(int argc, char **argv) {
     raw.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
-    signal(SIGWINCH, on_winch);
-    signal(SIGINT, on_quit);
-    signal(SIGTERM, on_quit);
+    install_handler(SIGWINCH, on_winch);
+    install_handler(SIGINT, on_quit);
+    install_handler(SIGTERM, on_quit);
     std::printf("\x1b[?1049h\x1b[?25l");
+
+    // foot spawns the shell on an 80x24 pty and only resizes it once the
+    // window is mapped, so the first frame would be drawn into the narrow
+    // single-column layout and then snap to the real size. Wait for that
+    // resize instead of showing a half-filled dashboard.
+    {
+        int c0, r0;
+        terminal_size(&c0, &r0);
+        for (int i = 0; i < 50 && !g_resize && c0 == 80 && r0 == 24; i++) {
+            struct pollfd idle = {STDIN_FILENO, POLLIN, 0};
+            if (poll(&idle, 1, 10) > 0) break;
+        }
+        g_resize = 0;
+    }
 
     double last_time = (double)time(nullptr);
     std::string last_iface = prev_iface;
