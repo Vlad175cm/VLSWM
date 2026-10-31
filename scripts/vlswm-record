@@ -4,22 +4,102 @@
 
 runtime="${XDG_RUNTIME_DIR:-/tmp}"
 pidfile="$runtime/vlswm-record.pid"
+state="${XDG_STATE_HOME:-$HOME/.local/state}/vlswm"
+log="$state/record.log"
+out=""
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 &&
+        notify-send -a vlswm -t 2000 "$@" >/dev/null 2>&1
+}
+
+mkdir -p "$state"
+
+stop_recording() {
+    pid="$1"
+    file="$2"
+    kill -INT "$pid" 2>/dev/null || true
+    # wf-recorder writes the mp4 trailer on exit: wait for it before returning
+    i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        i=$((i + 1))
+        [ "$i" -ge 200 ] && break
+        sleep 0.05
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -TERM "$pid" 2>/dev/null || true
+        sleep 0.5
+        kill -KILL "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pidfile"
+
+    if [ -n "$file" ] && [ -f "$file" ]; then
+        size=$(stat -c %s "$file" 2>/dev/null || echo 0)
+        if [ "$size" -gt 1024 ]; then
+            notify "Recording saved" "$(basename "$file") ($(du -h "$file" | cut -f1))"
+        else
+            notify "Recording failed" "see $log"
+        fi
+    fi
+}
+
+is_recorder() {
+    [ -n "$1" ] && kill -0 "$1" 2>/dev/null &&
+        [ "$(ps -p "$1" -o comm= 2>/dev/null)" = "wf-recorder" ]
+}
 
 if [ -f "$pidfile" ]; then
-    pid=$(cat "$pidfile" 2>/dev/null)
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-        kill -INT "$pid"
-        rm -f "$pidfile"
+    pid=""
+    started=""
+    old=""
+    read -r pid started old <"$pidfile" 2>/dev/null || true
+    if is_recorder "$pid"; then
+        now=$(date +%s)
+        # do not interrupt wf-recorder while it is still initializing
+        if [ -n "$started" ] && [ $((now - started)) -lt 1 ]; then
+            sleep 1
+        fi
+        stop_recording "$pid" "$old"
         exit 0
     fi
     rm -f "$pidfile"
 fi
 
+if ! command -v wf-recorder >/dev/null 2>&1; then
+    notify "Recording failed" "wf-recorder is not installed"
+    exit 1
+fi
+
 mkdir -p "$HOME/Videos"
-state="${XDG_STATE_HOME:-$HOME/.local/state}/vlswm"
-mkdir -p "$state"
 out="$HOME/Videos/review-$(date +%Y-%m-%d-%H%M%S).mp4"
 
-wf-recorder -c h264_vaapi -d /dev/dri/renderD128 -r 30 -a -f "$out" \
-    >"$state/record.log" 2>&1 &
-echo $! >"$pidfile"
+start_recording() {
+    codec="$1"
+    audio="$2"
+    # shellcheck disable=SC2086
+    if [ "$audio" = "yes" ]; then
+        wf-recorder $codec -r 30 -a -f "$out" >>"$log" 2>&1 &
+    else
+        wf-recorder $codec -r 30 -f "$out" >>"$log" 2>&1 &
+    fi
+    pid=$!
+    sleep 0.7
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "$pid $(date +%s) $out" >"$pidfile"
+        notify "Recording started" "$(basename "$out")"
+        return 0
+    fi
+    rm -f "$out"
+    return 1
+}
+
+vaapi="-c h264_vaapi -d ${VAAPI_DEVICE:-/dev/dri/renderD128}"
+cpu="-c libx264 -p crf=23 -p preset=veryfast"
+
+start_recording "$vaapi" yes && exit 0
+start_recording "$vaapi" no && exit 0
+start_recording "$cpu" yes && exit 0
+start_recording "$cpu" no && exit 0
+
+notify "Recording failed" "see $log"
+exit 1
