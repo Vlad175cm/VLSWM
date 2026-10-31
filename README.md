@@ -143,7 +143,7 @@ foot 1.28 or newer is required: older versions do not know the `[colors-dark]` /
 
 ## Screen recording
 
-`SUPER+ALT+R` starts and stops recording with `wf-recorder` (VAAPI H.264, 30 fps, default audio). File: `~/Videos/review-*.mp4`.
+`SUPER+ALT+R` starts recording, `SUPER+ALT+S` stops it. Recording uses `wf-recorder` (VAAPI H.264, 30 fps, default audio) and falls back to `libx264` when hardware encoding is unavailable. File: `~/Videos/review-*.mp4`. Stopping waits until the file is finalized, so it opens immediately.
 
 ```bash
 wf-recorder -f record.mp4     # whole screen, Ctrl+C to stop
@@ -187,7 +187,8 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 | `SUPER+SPACE` | switch layout (us / ru) |
 | `SUPER+E` | file manager (yazi in a separate foot window) |
 | `SUPER+Z` | zen-browser |
-| `SUPER+ALT+R` | start / stop screen recording |
+| `SUPER+ALT+R` | start screen recording |
+| `SUPER+ALT+S` | stop screen recording |
 | `SUPER+SHIFT+A` | screenshot of a selected region |
 | `SUPER+SHIFT+V` | clipboard history |
 | `SUPER+SHIFT+R` | restart the base terminal (reset to fish) |

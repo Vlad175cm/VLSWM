@@ -1,11 +1,16 @@
 #!/bin/sh
-# Toggle a full-screen recording with wf-recorder.
-# Bind it to a key in vlswm: [commands] record = "vlswm-record".
+# Record the screen with wf-recorder.
+# Usage: vlswm-record [start|stop|toggle]   (default: toggle)
+# Bind it in vlswm:
+#   [commands]
+#   record = "vlswm-record start"
+#   record_stop = "vlswm-record stop"
 
 runtime="${XDG_RUNTIME_DIR:-/tmp}"
 pidfile="$runtime/vlswm-record.pid"
 state="${XDG_STATE_HOME:-$HOME/.local/state}/vlswm"
 log="$state/record.log"
+mode="${1:-toggle}"
 out=""
 
 notify() {
@@ -14,6 +19,11 @@ notify() {
 }
 
 mkdir -p "$state"
+
+is_recorder() {
+    [ -n "$1" ] && kill -0 "$1" 2>/dev/null &&
+        [ "$(ps -p "$1" -o comm= 2>/dev/null)" = "wf-recorder" ]
+}
 
 stop_recording() {
     pid="$1"
@@ -43,17 +53,16 @@ stop_recording() {
     fi
 }
 
-is_recorder() {
-    [ -n "$1" ] && kill -0 "$1" 2>/dev/null &&
-        [ "$(ps -p "$1" -o comm= 2>/dev/null)" = "wf-recorder" ]
-}
-
 if [ -f "$pidfile" ]; then
     pid=""
     started=""
     old=""
     read -r pid started old <"$pidfile" 2>/dev/null || true
     if is_recorder "$pid"; then
+        if [ "$mode" = "start" ]; then
+            notify "Already recording" "$(basename "$old")"
+            exit 0
+        fi
         now=$(date +%s)
         # do not interrupt wf-recorder while it is still initializing
         if [ -n "$started" ] && [ $((now - started)) -lt 1 ]; then
@@ -63,6 +72,11 @@ if [ -f "$pidfile" ]; then
         exit 0
     fi
     rm -f "$pidfile"
+fi
+
+if [ "$mode" = "stop" ]; then
+    notify "Not recording"
+    exit 0
 fi
 
 if ! command -v wf-recorder >/dev/null 2>&1; then
