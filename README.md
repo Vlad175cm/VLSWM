@@ -4,7 +4,7 @@ English | [Русский](README.ru.md)
 
 A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distributions. The desktop is a terminal (foot); apps open on top of it, fullscreen. Only black and white, only square corners, no wallpaper.
 
-**Version 1.1.3.**
+**Version 1.1.4.**
 
 > **Supported systems:** Arch Linux and Arch-based distributions only (Manjaro, EndeavourOS, CachyOS, …). Other distributions are not supported.
 
@@ -33,7 +33,7 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 - `SUPER+T` toggles the theme: black ↔ white. The screen background, launcher frame and input field change. The foot theme changes in **all** terminal windows too: vlswm sends `SIGUSR1` (black) or `SIGUSR2` (white) to every window, without restarting it.
 - Window animation: fade + 14 px rise on open and 10 px on close, 200 ms. The launcher appears instantly; `[launcher] duration` sets its delay in ms (0 — no animation).
 - X11 apps work through `xwayland-satellite`, started on first use.
-- Volume, screen brightness and keyboard backlight changes show a minimal inverted-theme bar at the top of the screen.
+- Volume, screen brightness and keyboard backlight changes show a minimal inverted-theme vertical bar at the right edge, vertically centered.
 
 ## Recommended browser
 
@@ -143,7 +143,7 @@ foot 1.28 or newer is required: older versions do not know the `[colors-dark]` /
 
 ## Screen recording
 
-`SUPER+ALT+R` starts recording, `SUPER+ALT+S` stops it. Recording uses `wf-recorder` (VAAPI H.264, 30 fps, default audio) and falls back to `libx264` when hardware encoding is unavailable. File: `~/Videos/review-*.mp4`. Stopping waits until the file is finalized, so it opens immediately. The audio track is the default microphone: `SUPER+ALT+M` turns it on (unmute at 100%) or off (mute) at any time, including during a recording.
+`SUPER+ALT+R` starts recording, `SUPER+ALT+S` stops it. Recording uses `wf-recorder` (VAAPI H.264, 30 fps, default audio) and falls back to `libx264` when hardware encoding is unavailable. File: `~/Videos/review-*.mp4`. Stopping waits until the file is finalized, so it opens immediately. The audio track is the default microphone: `SUPER+ALT+M` turns it on (unmute at 100%) or off (mute) at any time, including during a recording. Start and stop are confirmed by a small square at the right edge above the center: filled means recording started, an outline means it stopped.
 
 ```bash
 wf-recorder -f record.mp4     # whole screen, Ctrl+C to stop

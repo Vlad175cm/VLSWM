@@ -16,6 +16,7 @@ struct View;
 struct Launcher;
 struct Osd;
 struct Clipboard;
+struct Rec;
 
 struct Output {
     struct wlr_output *wlr_output;
@@ -122,6 +123,9 @@ struct Server {
     Launcher *launcher = nullptr;
     Osd *osd = nullptr;
     Clipboard *clipboard = nullptr;
+    Rec *rec = nullptr;
+    bool rec_active = false;
+    struct wl_event_source *rec_timer = nullptr;
 
     pid_t base_pid = 0;
     pid_t satellite_pid = 0;
@@ -188,6 +192,7 @@ struct Server {
     void set_theme(bool white);
     void apply_output_scale();
     void show_osd(const std::string &action, const std::string &cmd);
+    void poll_recording();
     void configure_all();
     void request_frame();
     void animate(uint64_t now);

@@ -4,6 +4,7 @@
 #include "vlswm/launcher.h"
 #include "vlswm/osd.h"
 #include "vlswm/clipboard.h"
+#include "vlswm/rec.h"
 #include "vlswm/theme.h"
 
 #include <xkbcommon/xkbcommon.h>
@@ -193,6 +194,13 @@ static int on_sigchld(int signal_number, void *data) {
 static int on_respawn_timer(void *data) {
     Server *server = (Server *)data;
     server->start_terminal();
+    return 0;
+}
+
+static int on_rec_timer(void *data) {
+    Server *server = (Server *)data;
+    server->poll_recording();
+    wl_event_source_timer_update(server->rec_timer, 250);
     return 0;
 }
 
@@ -949,6 +957,8 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     osd->init(this);
     clipboard = new Clipboard;
     clipboard->init(this);
+    rec = new Rec;
+    rec->init(this);
 
     cursor = wlr_cursor_create();
     wlr_cursor_attach_output_layout(cursor, output_layout);
@@ -1014,6 +1024,8 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     update_portal_env();
     start_terminal();
     spawn("command -v cliphist >/dev/null 2>&1 && wl-paste --watch cliphist store");
+    rec_timer = wl_event_loop_add_timer(wl_display_get_event_loop(wl_display), on_rec_timer, this);
+    wl_event_source_timer_update(rec_timer, 250);
     return true;
 
 fail:
@@ -1399,6 +1411,18 @@ static int first_int(const std::string &s) {
     return atoi(s.c_str() + i);
 }
 
+void Server::poll_recording() {
+    const char *runtime = std::getenv("XDG_RUNTIME_DIR");
+    std::string dir = runtime && *runtime ? runtime : "/tmp";
+    std::ifstream in(dir + "/vlswm-record.state");
+    pid_t pid = 0;
+    bool active = false;
+    if (in >> pid && pid > 0 && kill(pid, 0) == 0) active = true;
+    if (active == rec_active) return;
+    rec_active = active;
+    if (rec) rec->flash(active);
+}
+
 void Server::show_osd(const std::string &action, const std::string &cmd) {
     if (!osd) return;
 
@@ -1511,6 +1535,7 @@ bool Server::animations_running() const {
 void Server::animate(uint64_t now) {
     if (launcher) launcher->animate(now);
     if (osd) osd->animate(now);
+    if (rec) rec->animate(now);
 
     for (size_t i = 0; i < stack.size(); i++) {
         View *v = stack[i];

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(vlswm VERSION 1.1.3 LANGUAGES C CXX)
+project(vlswm VERSION 1.1.4 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -116,6 +116,7 @@ add_executable(vlswm
     src/launcher.cpp
     src/osd.cpp
     src/clipboard.cpp
+    src/rec.cpp
     src/overlay.cpp
     src/theme.cpp
     src/ini.cpp

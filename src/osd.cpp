@@ -4,11 +4,10 @@
 
 #include <algorithm>
 
-static const int OSD_W = 300;
-static const int OSD_H = 26;
-static const int OSD_MARGIN = 12;
+static const int OSD_W = 28;
+static const int OSD_H = 260;
+static const int OSD_MARGIN = 32;
 static const int OSD_INSET = 2;
-static const int OSD_BAR_H = 4;
 
 static void output_size(Server *server, int *w, int *h) {
     *w = 0;
@@ -34,15 +33,17 @@ void Osd::render() {
 
     double fill = std::clamp(value, 0.0, 1.0);
     if (fill > 0.0) {
+        double h = (OSD_H - OSD_INSET * 2) * fill;
         cairo_set_source_rgb(cr, fg, fg, fg);
-        cairo_rectangle(cr, OSD_INSET, (OSD_H - OSD_BAR_H) / 2,
-                        (OSD_W - OSD_INSET * 2) * fill, OSD_BAR_H);
+        cairo_rectangle(cr, OSD_INSET, OSD_H - OSD_INSET - h,
+                        OSD_W - OSD_INSET * 2, h);
         cairo_fill(cr);
     }
 
     cairo_destroy(cr);
     ov.commit(OSD_W, OSD_H);
-    wlr_scene_node_set_position(&ov.node->node, (ow - OSD_W) / 2, OSD_MARGIN);
+    wlr_scene_node_set_position(&ov.node->node, ow - OSD_W - OSD_MARGIN,
+                                (oh - OSD_H) / 2);
     wlr_scene_node_set_enabled(&ov.node->node, visible);
 }
 
