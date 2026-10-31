@@ -4,7 +4,7 @@ English | [Русский](README.ru.md)
 
 A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distributions. The desktop is a terminal (foot); apps open on top of it, fullscreen. Only black and white, only square corners, no wallpaper.
 
-**Version 1.1.1.**
+**Version 1.1.2.**
 
 > **Supported systems:** Arch Linux and Arch-based distributions only (Manjaro, EndeavourOS, CachyOS, …). Other distributions are not supported.
 

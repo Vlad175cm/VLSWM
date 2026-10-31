@@ -25,7 +25,7 @@
 #include <vector>
 
 #ifndef VLSWM_VERSION
-#define VLSWM_VERSION "1.1.1"
+#define VLSWM_VERSION "1.1.2"
 #endif
 
 static volatile sig_atomic_t g_resize = 0;

@@ -321,22 +321,31 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
     if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         if (server->satellite_pid == 0) server->ensure_satellite();
         xkb_layout_index_t layout = xkb_state_key_get_layout(keyboard->xkb_state, keycode);
-        const xkb_keysym_t *base = nullptr;
-        int n = xkb_keymap_key_get_syms_by_level(keyboard->keymap, keycode, layout, 0, &base);
+        const xkb_keysym_t *active = nullptr;
+        int active_n = xkb_keymap_key_get_syms_by_level(keyboard->keymap, keycode, layout, 0,
+                                                        &active);
+        xkb_keysym_t active_sym = active_n > 0 ? active[0] : XKB_KEY_NoSymbol;
         kb->swallowed = false;
 
-        for (int i = 0; i < n && !kb->swallowed; i++) {
-            int idx = server->find_binding(base[i], modifiers);
-            if (idx < 0) continue;
-            server->run_action(idx);
-            kb->swallowed = true;
-            kb->swallowed_keycode = event->keycode;
-            if (server->bindings[idx].repeat) {
-                Repeat r;
-                r.kind = RepeatKind::Binding;
-                r.binding = idx;
-                r.keycode = event->keycode;
-                server->start_repeat(r);
+        // Match bindings against every layout: SUPER+D must work with a
+        // Cyrillic layout active too, not only with the Latin one.
+        xkb_layout_index_t layouts = xkb_keymap_num_layouts(keyboard->keymap);
+        for (xkb_layout_index_t l = 0; l < layouts && !kb->swallowed; l++) {
+            const xkb_keysym_t *syms = nullptr;
+            int n = xkb_keymap_key_get_syms_by_level(keyboard->keymap, keycode, l, 0, &syms);
+            for (int i = 0; i < n && !kb->swallowed; i++) {
+                int idx = server->find_binding(syms[i], modifiers);
+                if (idx < 0) continue;
+                server->run_action(idx);
+                kb->swallowed = true;
+                kb->swallowed_keycode = event->keycode;
+                if (server->bindings[idx].repeat) {
+                    Repeat r;
+                    r.kind = RepeatKind::Binding;
+                    r.binding = idx;
+                    r.keycode = event->keycode;
+                    server->start_repeat(r);
+                }
             }
         }
 
@@ -345,13 +354,12 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
             char buf[32] = {0};
             xkb_state_key_get_utf8(keyboard->xkb_state, keycode, buf, sizeof(buf));
             std::string utf8 = buf;
-            xkb_keysym_t sym = n > 0 ? base[0] : XKB_KEY_NoSymbol;
-            server->launcher->key(sym, utf8);
+            server->launcher->key(active_sym, utf8);
             kb->swallowed = true;
             kb->swallowed_keycode = event->keycode;
             Repeat r;
             r.kind = RepeatKind::LauncherKey;
-            r.sym = sym;
+            r.sym = active_sym;
             r.utf8 = utf8;
             r.keycode = event->keycode;
             server->start_repeat(r);
@@ -361,8 +369,7 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
             !(modifiers & (WLR_MODIFIER_LOGO | WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT))) {
             char buf[32] = {0};
             xkb_state_key_get_utf8(keyboard->xkb_state, keycode, buf, sizeof(buf));
-            xkb_keysym_t sym = n > 0 ? base[0] : XKB_KEY_NoSymbol;
-            server->clipboard->key(sym, buf);
+            server->clipboard->key(active_sym, buf);
             kb->swallowed = true;
             kb->swallowed_keycode = event->keycode;
         }
