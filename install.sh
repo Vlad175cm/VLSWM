@@ -122,11 +122,14 @@ main() {
     "$REAL_HOME/.local/bin/vlswm-record"
   sudo -u "$REAL_USER" install -Dm755 "$SCRIPT_DIR/scripts/vlswm-screenshot" \
     "$REAL_HOME/.local/bin/vlswm-screenshot"
+  sudo -u "$REAL_USER" install -Dm755 "$SCRIPT_DIR/scripts/vlswm-mic" \
+    "$REAL_HOME/.local/bin/vlswm-mic"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswmstat"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm-update"
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-record"
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-screenshot"
+  echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-mic"
 
   echo -e "${GREEN}[4/7]${NC} Installing configuration to $CONFIG_DIR..."
   sudo -u "$REAL_USER" mkdir -p "$CONFIG_DIR"

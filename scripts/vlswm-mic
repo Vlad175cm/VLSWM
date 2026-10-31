@@ -1,0 +1,17 @@
+#!/bin/sh
+# Toggle the default microphone for recording.
+# Muted or zero volume -> unmute at 100%, otherwise mute.
+# Bind it in vlswm: [commands] mic_toggle = "vlswm-mic".
+
+src="@DEFAULT_AUDIO_SOURCE@"
+vol=$(wpctl get-volume "$src" 2>/dev/null)
+
+case "$vol" in
+*MUTED* | *"Volume: 0.00"*)
+    wpctl set-mute "$src" 0
+    wpctl set-volume "$src" 1.0
+    ;;
+*)
+    wpctl set-mute "$src" 1
+    ;;
+esac

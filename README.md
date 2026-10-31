@@ -4,7 +4,7 @@ English | [Русский](README.ru.md)
 
 A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distributions. The desktop is a terminal (foot); apps open on top of it, fullscreen. Only black and white, only square corners, no wallpaper.
 
-**Version 1.1.2.**
+**Version 1.1.3.**
 
 > **Supported systems:** Arch Linux and Arch-based distributions only (Manjaro, EndeavourOS, CachyOS, …). Other distributions are not supported.
 
@@ -143,7 +143,7 @@ foot 1.28 or newer is required: older versions do not know the `[colors-dark]` /
 
 ## Screen recording
 
-`SUPER+ALT+R` starts recording, `SUPER+ALT+S` stops it. Recording uses `wf-recorder` (VAAPI H.264, 30 fps, default audio) and falls back to `libx264` when hardware encoding is unavailable. File: `~/Videos/review-*.mp4`. Stopping waits until the file is finalized, so it opens immediately.
+`SUPER+ALT+R` starts recording, `SUPER+ALT+S` stops it. Recording uses `wf-recorder` (VAAPI H.264, 30 fps, default audio) and falls back to `libx264` when hardware encoding is unavailable. File: `~/Videos/review-*.mp4`. Stopping waits until the file is finalized, so it opens immediately. The audio track is the default microphone: `SUPER+ALT+M` turns it on (unmute at 100%) or off (mute) at any time, including during a recording.
 
 ```bash
 wf-recorder -f record.mp4     # whole screen, Ctrl+C to stop
@@ -189,6 +189,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 | `SUPER+Z` | zen-browser |
 | `SUPER+ALT+R` | start screen recording |
 | `SUPER+ALT+S` | stop screen recording |
+| `SUPER+ALT+M` | microphone on / off |
 | `SUPER+SHIFT+A` | screenshot of a selected region |
 | `SUPER+SHIFT+V` | clipboard history |
 | `SUPER+SHIFT+R` | restart the base terminal (reset to fish) |
@@ -211,6 +212,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `src/output.cpp`, `src/ini.cpp`, `src/animation.cpp` — output, config, animations.
 - `scripts/vlswm-record` — screen recording via wf-recorder.
 - `scripts/vlswm-screenshot` — region selection and screenshot.
+- `scripts/vlswm-mic` — microphone toggle for recording.
 - `vlswm-update` — installs the latest release.
 
 ## Battery

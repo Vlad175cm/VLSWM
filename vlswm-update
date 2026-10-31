@@ -54,12 +54,14 @@ install -m 755 "$NEW/vlswm-update" /usr/bin/vlswm-update
 install -m 644 "$NEW/vlswm.desktop" /usr/share/wayland-sessions/vlswm.desktop
 install -Dm755 "$NEW/scripts/vlswm-record" /usr/bin/vlswm-record
 install -Dm755 "$NEW/scripts/vlswm-screenshot" /usr/bin/vlswm-screenshot
+install -Dm755 "$NEW/scripts/vlswm-mic" /usr/bin/vlswm-mic
 
 if [ -n "$REAL_HOME" ] && [ -d "$REAL_HOME/.local/bin" ]; then
     install -m 755 "$NEW/scripts/vlswm-record" "$REAL_HOME/.local/bin/vlswm-record"
     install -m 755 "$NEW/scripts/vlswm-screenshot" "$REAL_HOME/.local/bin/vlswm-screenshot"
+    install -m 755 "$NEW/scripts/vlswm-mic" "$REAL_HOME/.local/bin/vlswm-mic"
     chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.local/bin/vlswm-record" \
-        "$REAL_HOME/.local/bin/vlswm-screenshot"
+        "$REAL_HOME/.local/bin/vlswm-screenshot" "$REAL_HOME/.local/bin/vlswm-mic"
 fi
 
 echo "==> Replacing the source tree"
