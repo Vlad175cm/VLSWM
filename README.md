@@ -48,7 +48,7 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 - wlroots 0.20
 - `wlr-protocols` — protocol headers are generated from its XML at build time
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
-- Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume), `playerctl` (media keys)
+- Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
 
@@ -139,7 +139,7 @@ scale = 1.0                   # interface scale (1.0, 1.5, 2.0)
 
 ### Hardware keys (optional)
 
-The default config does not bind brightness, volume, media keys or the microphone: they depend on the machine. Add what you need:
+The default config does not bind brightness, volume or the microphone: they depend on the machine. Add what you need:
 
 ```ini
 [keybinds]
@@ -148,9 +148,6 @@ brightness_down = "XF86MonBrightnessDown"
 volume_up = "XF86AudioRaiseVolume"
 volume_down = "XF86AudioLowerVolume"
 volume_mute = "XF86AudioMute"
-media_prev = "XF86AudioPrev"
-media_play = "XF86AudioPlay, XF86AudioPause"
-media_next = "XF86AudioNext"
 mic_toggle = "SUPER+ALT+M"
 
 [commands]
@@ -159,9 +156,6 @@ brightness_down = "brightnessctl -q set 5%-"
 volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
 volume_down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
 volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-media_prev = "playerctl previous"
-media_play = "playerctl play-pause"
-media_next = "playerctl next"
 mic_toggle = "$HOME/.local/bin/vlswm-mic"
 
 [input]
@@ -248,7 +242,6 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 | `SUPER+ESC` | exit |
 | `SUPER+F1` / `SUPER+F2` | brightness −/+ |
 | `SUPER+F3` / `SUPER+F4` | volume −/+ |
-| `F7` / `F8` / `F9` | previous track / play-pause / next track |
 
 ## Structure
 

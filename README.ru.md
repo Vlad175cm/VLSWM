@@ -48,7 +48,7 @@
 - wlroots 0.20
 - `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
-- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость), `playerctl` (медиа-клавиши)
+- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
 
@@ -139,7 +139,7 @@ scale = 1.0                   # масштаб интерфейса (1.0, 1.5, 2
 
 ### Клавиши железа (опционально)
 
-В дефолтном конфиге нет яркости, громкости, медиа-клавиш и микрофона: они зависят от машины. Добавь то, что нужно:
+В дефолтном конфиге нет яркости, громкости и микрофона: они зависят от машины. Добавь то, что нужно:
 
 ```ini
 [keybinds]
@@ -148,9 +148,6 @@ brightness_down = "XF86MonBrightnessDown"
 volume_up = "XF86AudioRaiseVolume"
 volume_down = "XF86AudioLowerVolume"
 volume_mute = "XF86AudioMute"
-media_prev = "XF86AudioPrev"
-media_play = "XF86AudioPlay, XF86AudioPause"
-media_next = "XF86AudioNext"
 mic_toggle = "SUPER+ALT+M"
 
 [commands]
@@ -159,9 +156,6 @@ brightness_down = "brightnessctl -q set 5%-"
 volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
 volume_down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
 volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-media_prev = "playerctl previous"
-media_play = "playerctl play-pause"
-media_next = "playerctl next"
 mic_toggle = "$HOME/.local/bin/vlswm-mic"
 
 [input]
@@ -248,7 +242,6 @@ vlswmstat --version
 | `SUPER+ESC` | выход |
 | `SUPER+F1` / `SUPER+F2` | яркость −/+ |
 | `SUPER+F3` / `SUPER+F4` | громкость −/+ |
-| `F7` / `F8` / `F9` | предыдущий трек / play-pause / следующий трек |
 
 ## Структура
 

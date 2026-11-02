@@ -37,7 +37,7 @@ install_dependencies() {
     pkgconf cmake make gcc \
     foot fish xwayland-satellite \
     grim slurp wl-clipboard wf-recorder cliphist \
-    brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa playerctl
+    brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa
 }
 
 check_runtime_tools() {

@@ -154,8 +154,8 @@ void Server::run_sync(const std::string &cmd) {
 
 static bool is_osd_action(const std::string &name) {
     return name.rfind("volume", 0) == 0 || name.rfind("mic", 0) == 0 ||
-           name.rfind("media", 0) == 0 || name == "brightness_up" ||
-           name == "brightness_down" || name.rfind("kbd_brightness", 0) == 0;
+           name == "brightness_up" || name == "brightness_down" ||
+           name.rfind("kbd_brightness", 0) == 0;
 }
 
 void Server::spawn_file_manager() {
@@ -1448,12 +1448,6 @@ void Server::show_osd(const std::string &action, const std::string &cmd) {
         size_t p = out.find(':');
         double v = p == std::string::npos ? 0.0 : atof(out.c_str() + p + 1);
         osd->show(muted ? 0.0 : v);
-        return;
-    }
-
-    if (action.rfind("media", 0) == 0) {
-        std::string out = run_capture("playerctl status 2>/dev/null");
-        if (rec) rec->flash(out.find("Playing") != std::string::npos);
         return;
     }
 
