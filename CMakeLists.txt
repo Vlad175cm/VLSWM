@@ -21,6 +21,7 @@ pkg_check_modules(CAIRO REQUIRED cairo)
 pkg_check_modules(PANGO REQUIRED pango)
 pkg_check_modules(PANGOCAIRO REQUIRED pangocairo)
 pkg_check_modules(LIBINPUT REQUIRED libinput)
+pkg_check_modules(SYSTEMD REQUIRED libsystemd)
 pkg_check_modules(WLR_PROTOCOLS wlr-protocols)
 
 set(_wlr_proto_dir "${WLR_PROTOCOLS_DATADIR}")
@@ -117,6 +118,7 @@ add_executable(vlswm
     src/osd.cpp
     src/clipboard.cpp
     src/rec.cpp
+    src/notify.cpp
     src/overlay.cpp
     src/theme.cpp
     src/ini.cpp
@@ -137,6 +139,7 @@ target_include_directories(vlswm PRIVATE
     ${PANGO_INCLUDE_DIRS}
     ${PANGOCAIRO_INCLUDE_DIRS}
     ${LIBINPUT_INCLUDE_DIRS}
+    ${SYSTEMD_INCLUDE_DIRS}
 )
 
 target_compile_definitions(vlswm PRIVATE WLR_USE_UNSTABLE VLSWM_VERSION="${PROJECT_VERSION}")
@@ -150,6 +153,7 @@ target_link_libraries(vlswm PRIVATE
     ${PANGO_LIBRARIES}
     ${PANGOCAIRO_LIBRARIES}
     ${LIBINPUT_LIBRARIES}
+    ${SYSTEMD_LIBRARIES}
     Threads::Threads
     m
 )

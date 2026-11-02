@@ -2,6 +2,12 @@
 # Key combos: MODIFIERS+KEY, modifiers are SUPER, SHIFT, CTRL, ALT.
 # A keybind may list several combos separated by commas.
 # Any name in [commands] can be bound to a key in [keybinds].
+#
+# This default is deliberately minimal and hardware-agnostic: brightness,
+# volume, media keys, keyboard backlight and the microphone are not bound,
+# because they depend on the machine. See README.md for ready-made snippets.
+# The config in the repository may gain new options over time: after an
+# update, compare it with your ~/.config/vlswm/config.
 
 [keybinds]
 launcher = "SUPER+D"
@@ -16,37 +22,16 @@ terminal = "SUPER+ENTER"
 restart_terminal = "SUPER+SHIFT+R"
 record = "SUPER+ALT+R"
 record_stop = "SUPER+ALT+S"
-mic_toggle = "SUPER+ALT+M"
 screenshot = "SUPER+SHIFT+A"
 clipboard = "SUPER+SHIFT+V"
+notifications = "SUPER+N"
 zen = "SUPER+Z"
-brightness_up = "XF86MonBrightnessUp, SUPER+F2"
-brightness_down = "XF86MonBrightnessDown, SUPER+F1"
-kbd_brightness_up = "XF86KbdBrightnessUp"
-kbd_brightness_down = "XF86KbdBrightnessDown"
-volume_up = "XF86AudioRaiseVolume, SUPER+F4"
-volume_down = "XF86AudioLowerVolume, SUPER+F3"
-volume_mute = "XF86AudioMute"
-media_prev = "XF86AudioPrev"
-media_play = "XF86AudioPlay, XF86AudioPause"
-media_next = "XF86AudioNext"
 
 [commands]
 zen = "zen-browser"
 record = "$HOME/.local/bin/vlswm-record start"
 record_stop = "$HOME/.local/bin/vlswm-record stop"
-mic_toggle = "$HOME/.local/bin/vlswm-mic"
 screenshot = "$HOME/.local/bin/vlswm-screenshot"
-brightness_up = "brightnessctl -q set 5%+"
-brightness_down = "brightnessctl -q set 5%-"
-kbd_brightness_up = "brightnessctl --device='smc::kbd_backlight' set 5%+"
-kbd_brightness_down = "brightnessctl --device='smc::kbd_backlight' set 5%-"
-volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
-volume_down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
-volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-media_prev = "playerctl previous"
-media_play = "playerctl play-pause"
-media_next = "playerctl next"
 
 [launcher]
 terminal = "foot"
@@ -67,7 +52,10 @@ repeat_rate = 40
 scroll_speed = 0.5
 layout = "us,ru"
 layout_options = "grp:win_space_toggle"
-repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down, kbd_brightness_up, kbd_brightness_down"
+repeat = "focus_next, focus_prev"
+
+[record]
+audio = "mic"                  # mic | system | both
 
 [xwayland]
 satellite = "xwayland-satellite"

@@ -47,7 +47,7 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 
 - wlroots 0.20
 - `wlr-protocols` — protocol headers are generated from its XML at build time
-- wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
+- wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
 - Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume), `playerctl` (media keys)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
@@ -77,6 +77,8 @@ The command always installs the latest GitHub release: it looks up the newest ta
 
 File: `~/.config/vlswm/config`. Reload without restarting: `SUPER+R`.
 
+The default config in the repository is hardware-agnostic and may gain new options over time; check `config/config` on GitHub after updating. Every release lists the new config keys.
+
 Combos are written as `MODIFIERS+KEY`. Modifiers: `SUPER`, `SHIFT`, `CTRL`, `ALT`. One action may have several keys separated by commas.
 
 ```ini
@@ -89,14 +91,20 @@ theme = "SUPER+T"
 focus_prev = "SUPER+RIGHT"
 focus_next = "SUPER+LEFT"
 file_manager = "SUPER+E"
+terminal = "SUPER+ENTER"
 restart_terminal = "SUPER+SHIFT+R"
+record = "SUPER+ALT+R"
+record_stop = "SUPER+ALT+S"
+screenshot = "SUPER+SHIFT+A"
 clipboard = "SUPER+SHIFT+V"
+notifications = "SUPER+N"
 zen = "SUPER+Z"                 # app: a key from [commands]
-volume_up = "XF86AudioRaiseVolume, SUPER+F4"
 
 [commands]
 zen = "zen-browser"            # any app: name = command
-volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
+record = "$HOME/.local/bin/vlswm-record start"
+record_stop = "$HOME/.local/bin/vlswm-record stop"
+screenshot = "$HOME/.local/bin/vlswm-screenshot"
 
 [launcher]
 terminal = "foot"
@@ -116,7 +124,10 @@ repeat_rate = 40               # repeats per second
 scroll_speed = 0.5             # scroll speed multiplier (touchpad and wheel)
 layout = "us,ru"               # keyboard layouts
 layout_options = "grp:win_space_toggle"   # SUPER+SPACE switches the layout
-repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down, kbd_brightness_up, kbd_brightness_down"
+repeat = "focus_next, focus_prev"
+
+[record]
+audio = "mic"                  # mic | system | both
 
 [xwayland]
 satellite = "xwayland-satellite"
@@ -125,6 +136,39 @@ display = ":1"
 [output]
 scale = 1.0                   # interface scale (1.0, 1.5, 2.0)
 ```
+
+### Hardware keys (optional)
+
+The default config does not bind brightness, volume, media keys or the microphone: they depend on the machine. Add what you need:
+
+```ini
+[keybinds]
+brightness_up = "XF86MonBrightnessUp"
+brightness_down = "XF86MonBrightnessDown"
+volume_up = "XF86AudioRaiseVolume"
+volume_down = "XF86AudioLowerVolume"
+volume_mute = "XF86AudioMute"
+media_prev = "XF86AudioPrev"
+media_play = "XF86AudioPlay, XF86AudioPause"
+media_next = "XF86AudioNext"
+mic_toggle = "SUPER+ALT+M"
+
+[commands]
+brightness_up = "brightnessctl -q set 5%+"
+brightness_down = "brightnessctl -q set 5%-"
+volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
+volume_down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+media_prev = "playerctl previous"
+media_play = "playerctl play-pause"
+media_next = "playerctl next"
+mic_toggle = "$HOME/.local/bin/vlswm-mic"
+
+[input]
+repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down"
+```
+
+Keyboard backlight on Macs: add `kbd_brightness_up = "XF86KbdBrightnessUp"` / `kbd_brightness_down = "XF86KbdBrightnessDown"` and commands with `brightnessctl --device='smc::kbd_backlight' set 5%+` / `5%-`.
 
 ### Binding an app to a key
 
@@ -143,7 +187,7 @@ foot 1.28 or newer is required: older versions do not know the `[colors-dark]` /
 
 ## Screen recording
 
-`SUPER+ALT+R` starts recording, `SUPER+ALT+S` stops it. Recording uses `wf-recorder` (VAAPI H.264, 30 fps, default audio) and falls back to `libx264` when hardware encoding is unavailable. File: `~/Videos/review-*.mp4`. Stopping waits until the file is finalized, so it opens immediately. The audio track is the default microphone: `SUPER+ALT+M` turns it on (unmute at 100%) or off (mute) at any time, including during a recording. Start and stop are confirmed by a small square at the right edge above the center: filled means recording started, an outline means it stopped.
+`SUPER+ALT+R` starts recording, `SUPER+ALT+S` stops it. Recording uses `wf-recorder` (VAAPI H.264, 30 fps, audio from `[record] audio`) and falls back to `libx264` when hardware encoding is unavailable. File: `~/Videos/review-*.mp4`. Stopping waits until the file is finalized, so it opens immediately. The audio source is set by `[record] audio`: `mic` (default source), `system` (default sink monitor) or `both` (a temporary null sink mixing both). With `mic`, `SUPER+ALT+M` turns the microphone on (unmute at 100%) or off (mute) at any time, including during a recording. Start and stop are confirmed by a small square at the right edge above the center: filled means recording started, an outline means it stopped.
 
 ```bash
 wf-recorder -f record.mp4     # whole screen, Ctrl+C to stop
@@ -154,6 +198,12 @@ Only the whole screen is recorded. Capturing individual windows requires foreign
 ## Taking screenshots
 
 `SUPER+SHIFT+A` — select a region (slurp), save a PNG (grim) and copy it to the clipboard (wl-copy). File: `~/Downloads/YYYY-MM-DD-HHMMSS.png`. `Esc` cancels.
+
+## Notifications
+
+vlswm is the notification daemon: it owns `org.freedesktop.Notifications`, so notifications from any app (Telegram, mail, scripts) appear on the left, vertically centered, as inverted-theme cards. Up to 3 cards are shown, each for 4 seconds. `SUPER+N` opens the panel with the last 50 notifications; `Esc` closes it, `C` clears the history. Recording start/stop and config reloads also post notifications.
+
+Only one notification daemon can own the name: stop `mako`, `dunst` or another daemon if one is running.
 
 ## Clipboard history
 
@@ -192,6 +242,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 | `SUPER+ALT+M` | microphone on / off |
 | `SUPER+SHIFT+A` | screenshot of a selected region |
 | `SUPER+SHIFT+V` | clipboard history |
+| `SUPER+N` | notifications panel |
 | `SUPER+SHIFT+R` | restart the base terminal (reset to fish) |
 | `SUPER+R` | reload the config |
 | `SUPER+ESC` | exit |
@@ -207,6 +258,8 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `src/launcher.cpp` — launcher (cairo + pango).
 - `src/osd.cpp` — volume and brightness overlay.
 - `src/clipboard.cpp` — clipboard history picker.
+- `src/notify.cpp` — notification daemon, cards and panel.
+- `src/rec.cpp` — recording start/stop indicator.
 - `src/overlay.cpp` — shared buffer for the launcher, OSD and picker.
 - `src/theme.cpp` — foot theme.
 - `src/vlswmstat.cpp` — the `vlswmstat` dashboard.
@@ -215,6 +268,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `scripts/vlswm-screenshot` — region selection and screenshot.
 - `scripts/vlswm-mic` — microphone toggle for recording.
 - `vlswm-update` — installs the latest release.
+- `release.sh` — bumps the version, tags and publishes a release.
 
 ## Battery
 

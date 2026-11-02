@@ -47,7 +47,7 @@
 
 - wlroots 0.20
 - `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
-- wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
+- wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
 - Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость), `playerctl` (медиа-клавиши)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
@@ -77,6 +77,8 @@ sudo vlswm-update
 
 Файл: `~/.config/vlswm/config`. Перечитать без перезапуска: `SUPER+R`.
 
+Дефолтный конфиг в репозитории не привязан к железу и может со временем получать новые опции — после обновления сверься с `config/config` на GitHub. В каждом релизе перечислены новые ключи конфига.
+
 Комбинации записываются как `МОДИФИКАТОРЫ+КЛАВИША`. Модификаторы: `SUPER`, `SHIFT`, `CTRL`, `ALT`. Одно действие может иметь несколько клавиш через запятую.
 
 ```ini
@@ -89,14 +91,20 @@ theme = "SUPER+T"
 focus_prev = "SUPER+RIGHT"
 focus_next = "SUPER+LEFT"
 file_manager = "SUPER+E"
+terminal = "SUPER+ENTER"
 restart_terminal = "SUPER+SHIFT+R"
+record = "SUPER+ALT+R"
+record_stop = "SUPER+ALT+S"
+screenshot = "SUPER+SHIFT+A"
 clipboard = "SUPER+SHIFT+V"
+notifications = "SUPER+N"
 zen = "SUPER+Z"                 # приложение: ключ из [commands]
-volume_up = "XF86AudioRaiseVolume, SUPER+F4"
 
 [commands]
 zen = "zen-browser"            # любое приложение: имя = команда
-volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
+record = "$HOME/.local/bin/vlswm-record start"
+record_stop = "$HOME/.local/bin/vlswm-record stop"
+screenshot = "$HOME/.local/bin/vlswm-screenshot"
 
 [launcher]
 terminal = "foot"
@@ -116,7 +124,10 @@ repeat_rate = 40               # повторов в секунду
 scroll_speed = 0.5             # множитель скорости прокрутки (тачпад и колесо)
 layout = "us,ru"               # раскладки клавиатуры
 layout_options = "grp:win_space_toggle"   # SUPER+SPACE переключает раскладку
-repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down, kbd_brightness_up, kbd_brightness_down"
+repeat = "focus_next, focus_prev"
+
+[record]
+audio = "mic"                  # mic | system | both
 
 [xwayland]
 satellite = "xwayland-satellite"
@@ -125,6 +136,39 @@ display = ":1"
 [output]
 scale = 1.0                   # масштаб интерфейса (1.0, 1.5, 2.0)
 ```
+
+### Клавиши железа (опционально)
+
+В дефолтном конфиге нет яркости, громкости, медиа-клавиш и микрофона: они зависят от машины. Добавь то, что нужно:
+
+```ini
+[keybinds]
+brightness_up = "XF86MonBrightnessUp"
+brightness_down = "XF86MonBrightnessDown"
+volume_up = "XF86AudioRaiseVolume"
+volume_down = "XF86AudioLowerVolume"
+volume_mute = "XF86AudioMute"
+media_prev = "XF86AudioPrev"
+media_play = "XF86AudioPlay, XF86AudioPause"
+media_next = "XF86AudioNext"
+mic_toggle = "SUPER+ALT+M"
+
+[commands]
+brightness_up = "brightnessctl -q set 5%+"
+brightness_down = "brightnessctl -q set 5%-"
+volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
+volume_down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+media_prev = "playerctl previous"
+media_play = "playerctl play-pause"
+media_next = "playerctl next"
+mic_toggle = "$HOME/.local/bin/vlswm-mic"
+
+[input]
+repeat = "focus_next, focus_prev, volume_up, volume_down, brightness_up, brightness_down"
+```
+
+Подсветка клавиатуры на Mac: `kbd_brightness_up = "XF86KbdBrightnessUp"` / `kbd_brightness_down = "XF86KbdBrightnessDown"` и команды с `brightnessctl --device='smc::kbd_backlight' set 5%+` / `5%-`.
 
 ### Как добавить приложение на клавишу
 
@@ -143,7 +187,7 @@ vlswm читает базовую палитру из `[colors-dark]` в `~/.con
 
 ## Запись экрана
 
-`SUPER+ALT+R` запускает запись, `SUPER+ALT+S` — останавливает. Запись идёт через `wf-recorder` (VAAPI H.264, 30 fps, аудио по умолчанию) с fallback на `libx264`, если аппаратного кодека нет. Файл: `~/Videos/review-*.mp4`. Остановка ждёт финализации файла, поэтому он открывается сразу. Аудиодорожка — это микрофон по умолчанию: `SUPER+ALT+M` включает его (unmute + 100%) и выключает (mute) в любой момент, в том числе во время записи. Начало и конец записи подтверждаются маленьким квадратом у правого края выше центра: заполненный — запись началась, контурный — закончилась.
+`SUPER+ALT+R` запускает запись, `SUPER+ALT+S` — останавливает. Запись идёт через `wf-recorder` (VAAPI H.264, 30 fps, звук из `[record] audio`) с fallback на `libx264`, если аппаратного кодека нет. Файл: `~/Videos/review-*.mp4`. Остановка ждёт финализации файла, поэтому он открывается сразу. Источник звука задаётся в `[record] audio`: `mic` (микрофон по умолчанию), `system` (монитор дефолтного выхода) или `both` (временный null-sink, куда микшируются оба). При `mic` клавиша `SUPER+ALT+M` включает микрофон (unmute + 100%) и выключает его (mute) в любой момент, в том числе во время записи. Начало и конец записи подтверждаются маленьким квадратом у правого края выше центра: заполненный — запись началась, контурный — закончилась.
 
 ```bash
 wf-recorder -f record.mp4     # весь экран, Ctrl+C — остановить
@@ -154,6 +198,12 @@ wf-recorder -f record.mp4     # весь экран, Ctrl+C — останови
 ## Как сделать скриншот
 
 `SUPER+SHIFT+A` — выделить область (slurp), снять PNG (grim) и положить его в буфер (wl-copy). Файл: `~/Downloads/YYYY-MM-DD-HHMMSS.png`. `Esc` — отмена.
+
+## Уведомления
+
+vlswm сам является демоном уведомлений: владеет `org.freedesktop.Notifications`, поэтому уведомления любых приложений (Telegram, почта, скрипты) появляются слева по центру в виде карточек в цветах инверсной темы. Одновременно видно до 3 карточек, каждая живёт 4 секунды. `SUPER+N` открывает панель с последними 50 уведомлениями; `Esc` закрывает, `C` очищает историю. Начало/конец записи и перезагрузка конфига тоже показываются уведомлениями.
+
+Имя может занимать только один демон: если запущены `mako`, `dunst` или другой демон — останови их.
 
 ## История буфера обмена
 
@@ -192,6 +242,7 @@ vlswmstat --version
 | `SUPER+ALT+M` | микрофон вкл / выкл |
 | `SUPER+SHIFT+A` | скриншот выделенной области |
 | `SUPER+SHIFT+V` | история буфера обмена |
+| `SUPER+N` | панель уведомлений |
 | `SUPER+SHIFT+R` | перезапустить базовый терминал (сброс до fish) |
 | `SUPER+R` | перечитать конфиг |
 | `SUPER+ESC` | выход |
@@ -207,6 +258,8 @@ vlswmstat --version
 - `src/launcher.cpp` — лаунчер (cairo + pango).
 - `src/osd.cpp` — оверлей громкости и яркости.
 - `src/clipboard.cpp` — пикер истории буфера.
+- `src/notify.cpp` — демон уведомлений, карточки и панель.
+- `src/rec.cpp` — индикатор начала/конца записи.
 - `src/overlay.cpp` — общий буфер для лаунчера, OSD и пикера.
 - `src/theme.cpp` — тема foot.
 - `src/vlswmstat.cpp` — дашборд `vlswmstat`.
@@ -215,6 +268,7 @@ vlswmstat --version
 - `scripts/vlswm-screenshot` — выделение области и скриншот.
 - `scripts/vlswm-mic` — переключатель микрофона для записи.
 - `vlswm-update` — установка последнего релиза.
+- `release.sh` — поднимает версию, ставит тег и публикует релиз.
 
 ## Батарея
 

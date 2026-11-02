@@ -5,6 +5,7 @@
 #include "vlswm/osd.h"
 #include "vlswm/clipboard.h"
 #include "vlswm/rec.h"
+#include "vlswm/notify.h"
 #include "vlswm/theme.h"
 
 #include <xkbcommon/xkbcommon.h>
@@ -153,8 +154,8 @@ void Server::run_sync(const std::string &cmd) {
 
 static bool is_osd_action(const std::string &name) {
     return name.rfind("volume", 0) == 0 || name.rfind("mic", 0) == 0 ||
-           name == "brightness_up" || name == "brightness_down" ||
-           name.rfind("kbd_brightness", 0) == 0;
+           name.rfind("media", 0) == 0 || name == "brightness_up" ||
+           name == "brightness_down" || name.rfind("kbd_brightness", 0) == 0;
 }
 
 void Server::spawn_file_manager() {
@@ -372,6 +373,15 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
             r.utf8 = utf8;
             r.keycode = event->keycode;
             server->start_repeat(r);
+        }
+
+        if (!kb->swallowed && server->notifications->panel &&
+            !(modifiers & (WLR_MODIFIER_LOGO | WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT))) {
+            char buf[32] = {0};
+            xkb_state_key_get_utf8(keyboard->xkb_state, keycode, buf, sizeof(buf));
+            server->notifications->key(active_sym, buf);
+            kb->swallowed = true;
+            kb->swallowed_keycode = event->keycode;
         }
 
         if (!kb->swallowed && server->clipboard->open &&
@@ -959,6 +969,9 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     clipboard->init(this);
     rec = new Rec;
     rec->init(this);
+    notifications = new Notifications;
+    notifications->init(this);
+    notifications->dbus_init();
 
     cursor = wlr_cursor_create();
     wlr_cursor_attach_output_layout(cursor, output_layout);
@@ -1196,6 +1209,7 @@ void Server::load_bindings() {
         std::string cmd;
         if (action == "launcher") type = BindAction::Launcher;
         else if (action == "clipboard") type = BindAction::Clipboard;
+        else if (action == "notifications") type = BindAction::Notifications;
         else if (action == "file_manager") type = BindAction::FileManager;
         else if (action == "terminal") type = BindAction::NewTerminal;
         else if (action == "restart_terminal") type = BindAction::RestartTerminal;
@@ -1250,6 +1264,7 @@ void Server::run_action(int idx) {
         case BindAction::Theme: set_theme(!theme_white); break;
         case BindAction::Launcher: launcher->toggle(); break;
         case BindAction::Clipboard: clipboard->toggle(); break;
+        case BindAction::Notifications: notifications->toggle_panel(); break;
         case BindAction::FileManager: spawn_file_manager(); break;
         case BindAction::NewTerminal: spawn_new_terminal(); break;
         case BindAction::RestartTerminal: restart_terminal(); break;
@@ -1436,6 +1451,12 @@ void Server::show_osd(const std::string &action, const std::string &cmd) {
         return;
     }
 
+    if (action.rfind("media", 0) == 0) {
+        std::string out = run_capture("playerctl status 2>/dev/null");
+        if (rec) rec->flash(out.find("Playing") != std::string::npos);
+        return;
+    }
+
     if (action.rfind("mic", 0) == 0) {
         std::string out = run_capture("wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null");
         bool muted = out.find("MUTED") != std::string::npos;
@@ -1512,6 +1533,7 @@ void Server::reload_config() {
     set_theme(theme_white);
     launcher->reload();
     configure_all();
+    if (notifications) notifications->push("vlswm", "Config reloaded", config->path(), 3000, 0);
 }
 
 void Server::configure_all() {
@@ -1536,6 +1558,7 @@ void Server::animate(uint64_t now) {
     if (launcher) launcher->animate(now);
     if (osd) osd->animate(now);
     if (rec) rec->animate(now);
+    if (notifications) notifications->animate(now);
 
     for (size_t i = 0; i < stack.size(); i++) {
         View *v = stack[i];

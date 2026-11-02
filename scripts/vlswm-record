@@ -5,14 +5,20 @@
 #   [commands]
 #   record = "vlswm-record start"
 #   record_stop = "vlswm-record stop"
+#
+# Audio source comes from the config:
+#   [record]
+#   audio = "mic"      # mic | system | both
 
 runtime="${XDG_RUNTIME_DIR:-/tmp}"
 pidfile="$runtime/vlswm-record.pid"
 statefile="$runtime/vlswm-record.state"
+modfile="$runtime/vlswm-record.modules"
 state="${XDG_STATE_HOME:-$HOME/.local/state}/vlswm"
 log="$state/record.log"
 mode="${1:-toggle}"
 out=""
+audio_device=""
 
 notify() {
     command -v notify-send >/dev/null 2>&1 &&
@@ -24,6 +30,14 @@ mkdir -p "$state"
 is_recorder() {
     [ -n "$1" ] && kill -0 "$1" 2>/dev/null &&
         [ "$(ps -p "$1" -o comm= 2>/dev/null)" = "wf-recorder" ]
+}
+
+cleanup_audio() {
+    [ -f "$modfile" ] || return 0
+    while read -r mod; do
+        [ -n "$mod" ] && pactl unload-module "$mod" >/dev/null 2>&1
+    done <"$modfile"
+    rm -f "$modfile"
 }
 
 stop_recording() {
@@ -44,6 +58,7 @@ stop_recording() {
     fi
     rm -f "$pidfile"
     rm -f "$statefile"
+    cleanup_audio
 
     if [ -n "$file" ] && [ -f "$file" ]; then
         size=$(stat -c %s "$file" 2>/dev/null || echo 0)
@@ -53,6 +68,52 @@ stop_recording() {
             notify "Recording failed" "see $log"
         fi
     fi
+}
+
+audio_mode() {
+    cfg="$HOME/.config/vlswm/config"
+    mode=$(awk -F'=' '
+        /^\[/ { sec = $0; next }
+        sec == "[record]" && $1 ~ /^[ \t]*audio[ \t]*$/ {
+            gsub(/[ \t"]/, "", $2); print $2; exit
+        }' "$cfg" 2>/dev/null)
+    case "$mode" in
+    system | both) echo "$mode" ;;
+    *) echo "mic" ;;
+    esac
+}
+
+setup_audio() {
+    case "$(audio_mode)" in
+    system)
+        audio_device="$(pactl get-default-sink 2>/dev/null).monitor"
+        ;;
+    both)
+        rm -f "$modfile"
+        if ! command -v pactl >/dev/null 2>&1; then
+            audio_device=""
+            return 0
+        fi
+        m1=$(pactl load-module module-null-sink sink_name=vlswm_mix \
+            sink_properties=device.description=vlswm-mix 2>/dev/null) || { audio_device=""; return 0; }
+        echo "$m1" >"$modfile"
+        mic="$(pactl get-default-source 2>/dev/null)"
+        sink="$(pactl get-default-sink 2>/dev/null)"
+        m2=$(pactl load-module module-loopback source="$mic" sink=vlswm_mix latency_msec=50 2>/dev/null)
+        m3=$(pactl load-module module-loopback source="$sink.monitor" sink=vlswm_mix latency_msec=50 2>/dev/null)
+        if [ -z "$m2" ] || [ -z "$m3" ]; then
+            cleanup_audio
+            audio_device=""
+            return 0
+        fi
+        echo "$m2" >>"$modfile"
+        echo "$m3" >>"$modfile"
+        audio_device="vlswm_mix.monitor"
+        ;;
+    *)
+        audio_device=""
+        ;;
+    esac
 }
 
 if [ -f "$pidfile" ]; then
@@ -74,10 +135,12 @@ if [ -f "$pidfile" ]; then
         exit 0
     fi
     rm -f "$pidfile"
+    cleanup_audio
 fi
 
 if [ "$mode" = "stop" ]; then
     rm -f "$statefile"
+    cleanup_audio
     notify "Not recording"
     exit 0
 fi
@@ -92,10 +155,14 @@ out="$HOME/Videos/review-$(date +%Y-%m-%d-%H%M%S).mp4"
 
 start_recording() {
     codec="$1"
-    audio="$2"
+    with_audio="$2"
     # shellcheck disable=SC2086
-    if [ "$audio" = "yes" ]; then
-        wf-recorder $codec -r 30 -a -f "$out" >>"$log" 2>&1 &
+    if [ "$with_audio" = "yes" ]; then
+        if [ -n "$audio_device" ]; then
+            wf-recorder $codec -r 30 -a"$audio_device" -f "$out" >>"$log" 2>&1 &
+        else
+            wf-recorder $codec -r 30 -a -f "$out" >>"$log" 2>&1 &
+        fi
     else
         wf-recorder $codec -r 30 -f "$out" >>"$log" 2>&1 &
     fi
@@ -111,6 +178,7 @@ start_recording() {
     return 1
 }
 
+setup_audio
 vaapi="-c h264_vaapi -d ${VAAPI_DEVICE:-/dev/dri/renderD128}"
 cpu="-c libx264 -p crf=23 -p preset=veryfast"
 
@@ -119,6 +187,7 @@ start_recording "$vaapi" no && exit 0
 start_recording "$cpu" yes && exit 0
 start_recording "$cpu" no && exit 0
 
+cleanup_audio
 rm -f "$statefile"
 notify "Recording failed" "see $log"
 exit 1

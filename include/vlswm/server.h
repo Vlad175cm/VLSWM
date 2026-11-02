@@ -17,6 +17,7 @@ struct Launcher;
 struct Osd;
 struct Clipboard;
 struct Rec;
+struct Notifications;
 
 struct Output {
     struct wlr_output *wlr_output;
@@ -53,6 +54,7 @@ enum class BindAction {
     Theme,
     Launcher,
     Clipboard,
+    Notifications,
     FileManager,
     NewTerminal,
     RestartTerminal,
@@ -124,6 +126,7 @@ struct Server {
     Osd *osd = nullptr;
     Clipboard *clipboard = nullptr;
     Rec *rec = nullptr;
+    Notifications *notifications = nullptr;
     bool rec_active = false;
     struct wl_event_source *rec_timer = nullptr;
 
