@@ -4,7 +4,7 @@
 
 Минимальная Wayland-оболочка на **wlroots 0.20** для Arch Linux и Arch-based дистрибутивов. Рабочий стол — это терминал (foot), приложения открываются поверх него на весь экран. Только чёрный и белый, только прямые углы, без обоев.
 
-**Версия 1.1.4.**
+**Версия 1.1.5.**
 
 > **Поддерживаемые системы:** только Arch Linux и Arch-based дистрибутивы (Manjaro, EndeavourOS, CachyOS и т.п.). Другие дистрибутивы не поддерживаются.
 
@@ -48,7 +48,7 @@
 - wlroots 0.20
 - `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
-- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
+- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость), `playerctl` (медиа-клавиши)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
 
@@ -197,6 +197,7 @@ vlswmstat --version
 | `SUPER+ESC` | выход |
 | `SUPER+F1` / `SUPER+F2` | яркость −/+ |
 | `SUPER+F3` / `SUPER+F4` | громкость −/+ |
+| `F7` / `F8` / `F9` | предыдущий трек / play-pause / следующий трек |
 
 ## Структура
 

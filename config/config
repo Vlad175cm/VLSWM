@@ -27,6 +27,9 @@ kbd_brightness_down = "XF86KbdBrightnessDown"
 volume_up = "XF86AudioRaiseVolume, SUPER+F4"
 volume_down = "XF86AudioLowerVolume, SUPER+F3"
 volume_mute = "XF86AudioMute"
+media_prev = "XF86AudioPrev"
+media_play = "XF86AudioPlay, XF86AudioPause"
+media_next = "XF86AudioNext"
 
 [commands]
 zen = "zen-browser"
@@ -41,6 +44,9 @@ kbd_brightness_down = "brightnessctl --device='smc::kbd_backlight' set 5%-"
 volume_up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
 volume_down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
 volume_mute = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+media_prev = "playerctl previous"
+media_play = "playerctl play-pause"
+media_next = "playerctl next"
 
 [launcher]
 terminal = "foot"

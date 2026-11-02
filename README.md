@@ -4,7 +4,7 @@ English | [Русский](README.ru.md)
 
 A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distributions. The desktop is a terminal (foot); apps open on top of it, fullscreen. Only black and white, only square corners, no wallpaper.
 
-**Version 1.1.4.**
+**Version 1.1.5.**
 
 > **Supported systems:** Arch Linux and Arch-based distributions only (Manjaro, EndeavourOS, CachyOS, …). Other distributions are not supported.
 
@@ -48,7 +48,7 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 - wlroots 0.20
 - `wlr-protocols` — protocol headers are generated from its XML at build time
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo
-- Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume)
+- Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume), `playerctl` (media keys)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
 
@@ -197,6 +197,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 | `SUPER+ESC` | exit |
 | `SUPER+F1` / `SUPER+F2` | brightness −/+ |
 | `SUPER+F3` / `SUPER+F4` | volume −/+ |
+| `F7` / `F8` / `F9` | previous track / play-pause / next track |
 
 ## Structure
 
