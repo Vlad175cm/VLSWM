@@ -20,13 +20,28 @@
 |---|---|
 | ![Лаунчер, чёрная тема](assets/screenshots/launcher-black.png) | ![Лаунчер, белая тема](assets/screenshots/launcher-white.png) |
 
-![Редактирование конфига vlswm в Neovim](assets/screenshots/editor-black.png)
+| Карточки уведомлений | Панель уведомлений |
+|---|---|
+| ![Карточки уведомлений](assets/screenshots/notifications-cards.png) | ![Панель уведомлений](assets/screenshots/notifications-panel.png) |
 
 ## Dotfiles (личное окружение)
 
 Папка `dots/` — личное окружение автора, настроенное под то, как он реально пользуется VLSWM: Neovim (`dots/nvim`), btop (`dots/btop`) и cava (`dots/cava`), всё монохромное и следует теме VLSWM, плюс user-сервис `vlswm-theme-watch`, который держит btop и cava в синхроне с `SUPER+T`.
 
 `install.sh` спрашивает, ставить ли их, и всё заменённое переносит в каталог `.backup` с датой. Окружение субъективное (Zen, yazi, полноценный Neovim), так что это готовый стартовый набор, а не универсальный дефолт.
+
+| Neovim, чёрная тема | Neovim, белая тема |
+|---|---|
+| ![Neovim, чёрная тема](assets/screenshots/nvim-black.png) | ![Neovim, белая тема](assets/screenshots/nvim-white.png) |
+
+| btop, чёрная тема | btop, белая тема |
+|---|---|
+| ![btop, чёрная тема](assets/screenshots/btop-black.png) | ![btop, белая тема](assets/screenshots/btop-white.png) |
+
+| cava, чёрная тема | cava, белая тема |
+|---|---|
+| ![cava, чёрная тема](assets/screenshots/cava-black.png) | ![cava, белая тема](assets/screenshots/cava-white.png) |
+
 
 ## Как это работает
 

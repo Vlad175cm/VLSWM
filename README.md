@@ -20,13 +20,28 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 |---|---|
 | ![Launcher, black theme](assets/screenshots/launcher-black.png) | ![Launcher, white theme](assets/screenshots/launcher-white.png) |
 
-![Editing the vlswm config in Neovim](assets/screenshots/editor-black.png)
+| Notification cards | Notifications panel |
+|---|---|
+| ![Notification cards](assets/screenshots/notifications-cards.png) | ![Notifications panel](assets/screenshots/notifications-panel.png) |
 
 ## Dotfiles (personal environment)
 
 The `dots/` folder is the author's personal environment, tuned to the way he actually uses VLSWM: Neovim (`dots/nvim`), btop (`dots/btop`) and cava (`dots/cava`), all monochrome and following the VLSWM theme, plus the `vlswm-theme-watch` user service that keeps btop and cava in sync with `SUPER+T`.
 
 `install.sh` asks whether to install them and moves anything it replaces to a timestamped `.backup` directory. This environment is opinionated (Zen browser, yazi, a full Neovim setup), so treat it as a ready-made starting point rather than a universal default.
+
+| Neovim, black theme | Neovim, white theme |
+|---|---|
+| ![Neovim, black theme](assets/screenshots/nvim-black.png) | ![Neovim, white theme](assets/screenshots/nvim-white.png) |
+
+| btop, black theme | btop, white theme |
+|---|---|
+| ![btop, black theme](assets/screenshots/btop-black.png) | ![btop, white theme](assets/screenshots/btop-white.png) |
+
+| cava, black theme | cava, white theme |
+|---|---|
+| ![cava, black theme](assets/screenshots/cava-black.png) | ![cava, white theme](assets/screenshots/cava-white.png) |
+
 
 ## How it works
 
