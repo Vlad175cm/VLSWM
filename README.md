@@ -268,7 +268,6 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `scripts/vlswm-screenshot` — region selection and screenshot.
 - `scripts/vlswm-mic` — microphone toggle for recording.
 - `vlswm-update` — installs the latest release.
-- `release.sh` — bumps the version, tags and publishes a release.
 
 ## Battery
 
