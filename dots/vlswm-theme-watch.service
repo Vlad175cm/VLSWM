@@ -1,0 +1,11 @@
+[Unit]
+Description=Follow the VLSWM theme in btop and cava
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/vlswm-theme-watch
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

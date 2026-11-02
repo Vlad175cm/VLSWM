@@ -22,6 +22,12 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 
 ![Editing the vlswm config in Neovim](assets/screenshots/editor-black.png)
 
+## Dotfiles (personal environment)
+
+The `dots/` folder is the author's personal environment, tuned to the way he actually uses VLSWM: Neovim (`dots/nvim`), btop (`dots/btop`) and cava (`dots/cava`), all monochrome and following the VLSWM theme, plus the `vlswm-theme-watch` user service that keeps btop and cava in sync with `SUPER+T`.
+
+`install.sh` asks whether to install them and moves anything it replaces to a timestamped `.backup` directory. This environment is opinionated (Zen browser, yazi, a full Neovim setup), so treat it as a ready-made starting point rather than a universal default.
+
 ## How it works
 
 - On start **foot** opens fullscreen as the base layer: it cannot be closed. If it exits (for example `exit` in fish), vlswm starts it again.
@@ -48,8 +54,9 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 - wlroots 0.20
 - `wlr-protocols` — protocol headers are generated from its XML at build time
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
-- Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume)
+- Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
+- `zen-browser-bin` (AUR) — recommended browser; `install.sh` installs it through `yay`/`paru` when available
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
 
 ## Build and install
@@ -64,6 +71,8 @@ Release with LTO is the default. Binary: `build/vlswm`. Install: `sudo ./install
 CMake generates the missing protocol headers from `wlr-protocols` and creates compatible copies of the wlroots headers where the C99 `[static N]` syntax is replaced with `[N]` — otherwise a C++ compiler on a clean Arch refuses to build the project. If a system protocol XML is missing or empty, the copy from `protocols/` in the repository is used.
 
 Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c /path/to/config`.
+
+`install.sh` also asks whether to install the personal dotfiles from `dots/` (Neovim, btop, cava) and enables the `vlswm-theme-watch` user service so btop and cava follow the VLSWM theme.
 
 ### Updating
 
@@ -261,6 +270,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `scripts/vlswm-screenshot` — region selection and screenshot.
 - `scripts/vlswm-mic` — microphone toggle for recording.
 - `vlswm-update` — installs the latest release.
+- `dots/` — personal Neovim, btop and cava configs and the theme watcher.
 
 ## Battery
 

@@ -37,12 +37,26 @@ install_dependencies() {
     pkgconf cmake make gcc \
     foot fish xwayland-satellite \
     grim slurp wl-clipboard wf-recorder cliphist \
-    brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa
+    brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa \
+    yazi neovim btop cava
+
+  if ! command -v zen-browser >/dev/null 2>&1; then
+    local helper=""
+    for h in yay paru; do
+      if command -v "$h" >/dev/null 2>&1; then helper="$h"; break; fi
+    done
+    if [ -n "$helper" ]; then
+      echo -e "  Installing zen-browser-bin from AUR via $helper..."
+      sudo -u "$REAL_USER" "$helper" -S --needed --noconfirm zen-browser-bin || true
+    else
+      echo -e "${YELLOW}zen-browser-bin is in AUR; install it with yay or paru.${NC}"
+    fi
+  fi
 }
 
 check_runtime_tools() {
   local missing=""
-  for tool in foot fish xwayland-satellite grim slurp wl-copy wf-recorder cliphist; do
+  for tool in foot fish xwayland-satellite grim slurp wl-copy wf-recorder cliphist yazi nvim btop cava zen-browser; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       missing="$missing $tool"
     fi
@@ -50,6 +64,47 @@ check_runtime_tools() {
   if [ -n "$missing" ]; then
     echo -e "  ${YELLOW}⚠${NC}  Not found in PATH:$missing"
     echo -e "  ${YELLOW}⚠${NC}  vlswm still installs, but these programs must be present to work fully."
+  fi
+}
+
+install_dots() {
+  local src="$SCRIPT_DIR/dots"
+  [ -d "$src" ] || return 0
+  echo -e "${YELLOW}Install the Neovim, btop and cava configs from dots/? [Y/n]${NC}"
+  local ans=""
+  read -r ans
+  case "$ans" in
+  [nN]*) echo -e "  skipped"; return 0 ;;
+  esac
+
+  local app dst backup
+  for app in nvim btop cava; do
+    [ -d "$src/$app" ] || continue
+    dst="$REAL_HOME/.config/$app"
+    if [ -e "$dst" ]; then
+      backup="$dst.backup.$(date +%Y-%m-%d-%H%M%S)"
+      mv "$dst" "$backup"
+      echo -e "  ${YELLOW}⚠${NC}  Existing $dst moved to $backup"
+    fi
+    cp -a "$src/$app" "$dst"
+    chown -R "$REAL_USER:$REAL_USER" "$dst"
+    echo -e "  ${GREEN}✓${NC} Installed: $dst"
+  done
+
+  install -Dm755 "$src/vlswm-theme-watch" "$REAL_HOME/.local/bin/vlswm-theme-watch"
+  install -Dm644 "$src/vlswm-theme-watch.service" \
+    "$REAL_HOME/.config/systemd/user/vlswm-theme-watch.service"
+  chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.local/bin/vlswm-theme-watch" \
+    "$REAL_HOME/.config/systemd/user/vlswm-theme-watch.service"
+  echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-theme-watch"
+
+  local uid
+  uid="$(id -u "$REAL_USER")"
+  if sudo -u "$REAL_USER" env XDG_RUNTIME_DIR="/run/user/$uid" \
+      systemctl --user enable --now vlswm-theme-watch.service >/dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${NC} Enabled: vlswm-theme-watch.service"
+  else
+    echo -e "  ${YELLOW}⚠${NC}  Enable it after login: systemctl --user enable --now vlswm-theme-watch.service"
   fi
 }
 
@@ -71,7 +126,7 @@ main() {
   FOOT_DIR="$REAL_HOME/.config/foot"
   ENV_DIR="$REAL_HOME/.config/environment.d"
 
-  echo -e "${GREEN}[1/7]${NC} Installing dependencies..."
+  echo -e "${GREEN}[1/8]${NC} Installing dependencies..."
   require_arch
   install_dependencies
 
@@ -84,7 +139,7 @@ main() {
     exit 1
   fi
 
-  echo -e "${GREEN}[2/7]${NC} Building vlswm..."
+  echo -e "${GREEN}[2/8]${NC} Building vlswm..."
   if ! command -v cmake >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
     echo -e "${RED}Error: cmake and make are required to build.${NC}"
     exit 1
@@ -114,7 +169,7 @@ main() {
     fi
   fi
 
-  echo -e "${GREEN}[3/7]${NC} Installing binaries to $INSTALL_DIR..."
+  echo -e "${GREEN}[3/8]${NC} Installing binaries to $INSTALL_DIR..."
   install -m 755 -s "$SCRIPT_DIR/build/vlswm" "$INSTALL_DIR/vlswm"
   install -m 755 -s "$SCRIPT_DIR/build/vlswmstat" "$INSTALL_DIR/vlswmstat"
   install -m 755 "$SCRIPT_DIR/vlswm-update" "$INSTALL_DIR/vlswm-update"
@@ -131,7 +186,7 @@ main() {
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-screenshot"
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-mic"
 
-  echo -e "${GREEN}[4/7]${NC} Installing configuration to $CONFIG_DIR..."
+  echo -e "${GREEN}[4/8]${NC} Installing configuration to $CONFIG_DIR..."
   sudo -u "$REAL_USER" mkdir -p "$CONFIG_DIR"
   if [ -f "$CONFIG_DIR/config" ]; then
     echo -e "  ${YELLOW}⚠${NC}  Config already exists, saving backup: $CONFIG_DIR/config.backup"
@@ -142,7 +197,7 @@ main() {
   chown "$REAL_USER:$REAL_USER" "$CONFIG_DIR/config"
   echo -e "  ${GREEN}✓${NC} Installed: $CONFIG_DIR/config"
 
-  echo -e "${GREEN}[5/7]${NC} Installing foot configuration..."
+  echo -e "${GREEN}[5/8]${NC} Installing foot configuration..."
   if [ ! -d "$SCRIPT_DIR/config/foot" ]; then
     echo -e "${RED}Error: foot config not found in $SCRIPT_DIR/config/foot${NC}"
     exit 1
@@ -190,12 +245,15 @@ FISHEOF
   chown "$REAL_USER:$REAL_USER" "$FISH_CONF_DIR/vlswmstat.fish"
   echo -e "  ${GREEN}✓${NC} Installed: $FISH_CONF_DIR/vlswmstat.fish"
 
-  echo -e "${GREEN}[6/7]${NC} Creating SDDM session in $SDDM_DIR..."
+  echo -e "${GREEN}[6/8]${NC} Installing dotfiles (nvim, btop, cava)..."
+  install_dots
+
+  echo -e "${GREEN}[7/8]${NC} Creating SDDM session in $SDDM_DIR..."
   mkdir -p "$SDDM_DIR"
   cp "$SCRIPT_DIR/vlswm.desktop" "$SDDM_DIR/vlswm.desktop"
   echo -e "  ${GREEN}✓${NC} Created: $SDDM_DIR/vlswm.desktop"
 
-  echo -e "${GREEN}[7/7]${NC} Verifying installation..."
+  echo -e "${GREEN}[8/8]${NC} Verifying installation..."
   if command -v vlswm &>/dev/null; then
     echo -e "  ${GREEN}✓${NC} vlswm is available in PATH: $(vlswm --version 2>&1 || echo vlswm)"
   else

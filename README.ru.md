@@ -22,6 +22,12 @@
 
 ![Редактирование конфига vlswm в Neovim](assets/screenshots/editor-black.png)
 
+## Dotfiles (личное окружение)
+
+Папка `dots/` — личное окружение автора, настроенное под то, как он реально пользуется VLSWM: Neovim (`dots/nvim`), btop (`dots/btop`) и cava (`dots/cava`), всё монохромное и следует теме VLSWM, плюс user-сервис `vlswm-theme-watch`, который держит btop и cava в синхроне с `SUPER+T`.
+
+`install.sh` спрашивает, ставить ли их, и всё заменённое переносит в каталог `.backup` с датой. Окружение субъективное (Zen, yazi, полноценный Neovim), так что это готовый стартовый набор, а не универсальный дефолт.
+
 ## Как это работает
 
 - При запуске сразу открывается **foot** на весь экран. Это базовый слой: закрыть его нельзя. Если он завершился (например, `exit` в fish), vlswm запускает его снова.
@@ -48,8 +54,9 @@
 - wlroots 0.20
 - `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
-- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость)
+- Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
+- `zen-browser-bin` (AUR) — рекомендуемый браузер; `install.sh` ставит его через `yay`/`paru`, если они есть
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
 
 ## Сборка и установка
@@ -64,6 +71,8 @@ cmake --build build
 CMake сам генерирует недостающие заголовки протоколов из `wlr-protocols` и создаёт совместимые копии заголовков wlroots, в которых C99-синтаксис `[static N]` заменён на `[N]` — иначе C++-компилятор на чистом Arch отказывается собирать проект. Если системный XML протокола отсутствует или пуст, используется копия из `protocols/` в репозитории.
 
 Запуск из TTY или из SDDM-сессии `vlswm`. Другой конфиг: `vlswm -c /путь/к/config`.
+
+`install.sh` также спрашивает, ставить ли личные dotfiles из `dots/` (Neovim, btop, cava), и включает user-сервис `vlswm-theme-watch`, чтобы btop и cava следовали теме VLSWM.
 
 ### Обновление
 
@@ -261,6 +270,7 @@ vlswmstat --version
 - `scripts/vlswm-screenshot` — выделение области и скриншот.
 - `scripts/vlswm-mic` — переключатель микрофона для записи.
 - `vlswm-update` — установка последнего релиза.
+- `dots/` — личные конфиги Neovim, btop и cava и вотчер темы.
 
 ## Батарея
 

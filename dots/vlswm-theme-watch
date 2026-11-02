@@ -1,0 +1,68 @@
+#!/bin/sh
+# Keep btop and cava in sync with the VLSWM theme (black/white).
+# btop reloads its theme on SIGUSR2; cava reloads the config thanks to live-config.
+
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/vlswm/theme"
+BTOP_CONF="$HOME/.config/btop/btop.conf"
+CAVA_CONF="$HOME/.config/cava/config"
+
+cava_colors() {
+	case "$1" in
+	white)
+		cat <<'EOF'
+[color]
+gradient = 1
+gradient_count = 8
+gradient_color_1 = '#000000'
+gradient_color_2 = '#191919'
+gradient_color_3 = '#333333'
+gradient_color_4 = '#4c4c4c'
+gradient_color_5 = '#666666'
+gradient_color_6 = '#808080'
+gradient_color_7 = '#999999'
+gradient_color_8 = '#b3b3b3'
+EOF
+		;;
+	*)
+		cat <<'EOF'
+[color]
+gradient = 1
+gradient_count = 8
+gradient_color_1 = '#ffffff'
+gradient_color_2 = '#e6e6e6'
+gradient_color_3 = '#cccccc'
+gradient_color_4 = '#b3b3b3'
+gradient_color_5 = '#999999'
+gradient_color_6 = '#808080'
+gradient_color_7 = '#666666'
+gradient_color_8 = '#4d4d4d'
+EOF
+		;;
+	esac
+}
+
+apply() {
+	if [ -f "$BTOP_CONF" ]; then
+		sed -i "s|^color_theme = .*|color_theme = \"vlswm-$1\"|" "$BTOP_CONF"
+		pkill -USR2 -x btop 2>/dev/null || true
+	fi
+
+	if [ -f "$CAVA_CONF" ]; then
+		tmp="$(mktemp)"
+		awk '/^\[color\]/{exit} {print}' "$CAVA_CONF" >"$tmp"
+		cava_colors "$1" >>"$tmp"
+		cat "$tmp" >"$CAVA_CONF"
+		rm -f "$tmp"
+	fi
+}
+
+last=""
+while :; do
+	cur="$(head -n1 "$STATE" 2>/dev/null | tr -d '[:space:]')"
+	[ "$cur" = "white" ] || cur="black"
+	if [ "$cur" != "$last" ]; then
+		apply "$cur"
+		last="$cur"
+	fi
+	sleep 0.5
+done
