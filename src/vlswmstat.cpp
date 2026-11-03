@@ -8,6 +8,7 @@
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
+#include <fcntl.h>
 #include <fstream>
 #include <ifaddrs.h>
 #include <net/if.h>
@@ -157,6 +158,57 @@ static double uptime_seconds() {
     double up = 0;
     in >> up;
     return up;
+}
+
+static time_t system_birth() {
+    static const time_t born = [] {
+        struct statx stx = {};
+        if (statx(AT_FDCWD, "/", AT_STATX_SYNC_AS_STAT, STATX_BTIME, &stx) == 0 &&
+            (stx.stx_mask & STATX_BTIME) && stx.stx_btime.tv_sec > 0) {
+            return (time_t)stx.stx_btime.tv_sec;
+        }
+        // Fallback for filesystems without birth time: the first pacman line
+        // is the system installation date on Arch.
+        std::ifstream in("/var/log/pacman.log");
+        std::string line;
+        if (std::getline(in, line)) {
+            int y = 0, mo = 0, d = 0, h = 0, mi = 0, se = 0;
+            if (std::sscanf(line.c_str(), "[%d-%d-%dT%d:%d:%d",
+                            &y, &mo, &d, &h, &mi, &se) == 6) {
+                struct tm tm = {};
+                tm.tm_year = y - 1900;
+                tm.tm_mon = mo - 1;
+                tm.tm_mday = d;
+                tm.tm_hour = h;
+                tm.tm_min = mi;
+                tm.tm_sec = se;
+                return timegm(&tm);
+            }
+        }
+        return (time_t)0;
+    }();
+    return born;
+}
+
+static std::string age_text(time_t born) {
+    time_t now = std::time(nullptr);
+    if (born <= 0 || now <= born) return "unknown";
+    uint64_t days = (uint64_t)(now - born) / 86400;
+    uint64_t years = days / 365;
+    uint64_t months = (days % 365) / 30;
+    uint64_t rest = (days % 365) % 30;
+    char buf[64];
+    if (years) {
+        std::snprintf(buf, sizeof(buf), "%lluy %llum %llud",
+                      (unsigned long long)years, (unsigned long long)months,
+                      (unsigned long long)rest);
+    } else if (months) {
+        std::snprintf(buf, sizeof(buf), "%llum %llud",
+                      (unsigned long long)months, (unsigned long long)rest);
+    } else {
+        std::snprintf(buf, sizeof(buf), "%llud", (unsigned long long)days);
+    }
+    return buf;
 }
 
 static std::string distro_name() {
@@ -403,6 +455,7 @@ struct Snapshot {
     std::string distro;
     std::string kernel;
     std::string arch;
+    std::string age;
     double uptime = 0;
     std::string shell;
     std::string term;
@@ -442,6 +495,7 @@ static Snapshot snapshot(const CpuSample &prev_cpu, double elapsed,
         s.kernel = un.release;
         s.arch = un.machine;
     }
+    s.age = age_text(system_birth());
     s.uptime = uptime_seconds();
     const char *shell = getenv("SHELL");
     if (shell) {
@@ -565,6 +619,7 @@ static std::vector<std::string> build_frame(const Snapshot &s, int cols, int row
         {"host", s.host},
         {"distro", s.distro},
         {"kernel", s.kernel},
+        {"age", s.age},
         {"uptime", uptime_text(s.uptime)},
         {"shell", s.shell},
         {"term", s.term},

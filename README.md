@@ -233,7 +233,7 @@ At session start vlswm runs `wl-paste --watch cliphist store`, so copying in any
 
 ## vlswmstat
 
-`vlswmstat` is my compact monochrome dashboard: hostname, distro, kernel, uptime, shell, terminal, CPU, memory, disks, network, sensors, battery and VLSWM data. The large clock and date update every second.
+`vlswmstat` is my compact monochrome dashboard: hostname, distro, kernel, system age, uptime, shell, terminal, CPU, memory, disks, network, sensors, battery and VLSWM data. The large clock and date update every second. System age comes from the root filesystem birth time; if the filesystem does not support it, the first line of `/var/log/pacman.log` is used.
 
 ```bash
 vlswmstat           # live dashboard, quit with q or Esc
