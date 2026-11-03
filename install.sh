@@ -39,24 +39,11 @@ install_dependencies() {
     grim slurp wl-clipboard wf-recorder cliphist \
     brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa \
     yazi neovim btop cava
-
-  if ! command -v zen-browser >/dev/null 2>&1; then
-    local helper=""
-    for h in yay paru; do
-      if command -v "$h" >/dev/null 2>&1; then helper="$h"; break; fi
-    done
-    if [ -n "$helper" ]; then
-      echo -e "  Installing zen-browser-bin from AUR via $helper..."
-      sudo -u "$REAL_USER" "$helper" -S --needed --noconfirm zen-browser-bin || true
-    else
-      echo -e "${YELLOW}zen-browser-bin is in AUR; install it with yay or paru.${NC}"
-    fi
-  fi
 }
 
 check_runtime_tools() {
   local missing=""
-  for tool in foot fish xwayland-satellite grim slurp wl-copy wf-recorder cliphist yazi nvim btop cava zen-browser; do
+  for tool in foot fish xwayland-satellite grim slurp wl-copy wf-recorder cliphist yazi nvim btop cava; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       missing="$missing $tool"
     fi

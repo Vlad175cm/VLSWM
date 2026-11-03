@@ -71,7 +71,7 @@
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
 - Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
-- `zen-browser-bin` (AUR) — рекомендуемый браузер; `install.sh` ставит его через `yay`/`paru`, если они есть
+- `zen-browser-bin` (AUR) — рекомендуемый браузер (ставится вручную через `yay`/`paru`)
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
 
 ## Сборка и установка

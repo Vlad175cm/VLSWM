@@ -71,7 +71,7 @@ The `dots/` folder is the author's personal environment, tuned to the way he act
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
 - Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
-- `zen-browser-bin` (AUR) — recommended browser; `install.sh` installs it through `yay`/`paru` when available
+- `zen-browser-bin` (AUR) — recommended browser (install it manually with `yay`/`paru`)
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
 
 ## Build and install

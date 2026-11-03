@@ -1,14 +1,31 @@
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not (vim.uv or vim.loop).fs_stat(lazypath) then
-	vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", "https://github.com/folke/lazy.nvim.git", lazypath })
+local lazyinit = lazypath .. "/lua/lazy/init.lua"
+
+local function clone_lazy()
+	vim.fn.delete(lazypath, "rf")
+	local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", "https://github.com/folke/lazy.nvim.git", lazypath })
 	if vim.v.shell_error ~= 0 then
-		vim.api.nvim_echo({ { "Failed to clone lazy.nvim:", "ErrorMsg" } }, true, {})
+		vim.api.nvim_echo({ { "Failed to clone lazy.nvim:\n", "ErrorMsg" }, { out, "WarningMsg" } }, true, {})
 		os.exit(1)
 	end
+	package.loaded["lazy"] = nil
+	vim.opt.rtp:prepend(lazypath)
 end
-vim.opt.rtp:prepend(lazypath)
 
-require("lazy").setup({
+-- A failed or interrupted clone can leave an empty directory behind. In that
+-- case require("lazy") returns a boolean instead of the module, so check the
+-- real file and re-clone when the install is broken.
+if vim.fn.filereadable(lazyinit) == 1 then
+	vim.opt.rtp:prepend(lazypath)
+end
+
+local ok, lazy = pcall(require, "lazy")
+if not ok or type(lazy) ~= "table" then
+	clone_lazy()
+	lazy = require("lazy")
+end
+
+lazy.setup({
 	spec = {
 		{
 			"nvim-treesitter/nvim-treesitter",
