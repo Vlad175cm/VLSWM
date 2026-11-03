@@ -57,7 +57,7 @@ check_runtime_tools() {
 install_dots() {
   local src="$SCRIPT_DIR/dots"
   [ -d "$src" ] || return 0
-  echo -e "${YELLOW}Install the Neovim, btop and cava configs from dots/? [Y/n]${NC}"
+  echo -e "${YELLOW}Install my Neovim, btop and cava configs from dots/? [Y/n]${NC}"
   local ans=""
   read -r ans
   case "$ans" in

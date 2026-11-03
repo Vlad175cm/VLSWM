@@ -2,13 +2,15 @@
 
 English | [Русский](README.ru.md)
 
-A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distributions. The desktop is a terminal (foot); apps open on top of it, fullscreen. Only black and white, only square corners, no wallpaper.
+This is my personal Wayland shell on **wlroots 0.20**, for Arch Linux and Arch-based distributions. I built it for the way I work: my desktop is a terminal (foot), apps open on top of it fullscreen, and I use only black and white, square corners and no wallpaper.
 
 **Version 1.2.3.**
 
 > **Supported systems:** Arch Linux and Arch-based distributions only (Manjaro, EndeavourOS, CachyOS, …). Other distributions are not supported.
-
-> Experimental project. Written with the help of AI.
+>
+> **This is my personal setup.** I configured everything for myself: the terminal, keybindings, colors, scripts and dotfiles. When you install vlswm, you get the environment I use personally every day. It is not a universal desktop and I do not try to make it one — change the config if something does not fit you.
+>
+> Experimental project. I wrote it with AI help.
 
 ## Screenshots
 
@@ -26,9 +28,9 @@ A minimal Wayland shell on **wlroots 0.20** for Arch Linux and Arch-based distri
 
 ## Dotfiles (personal environment)
 
-The `dots/` folder is the author's personal environment, tuned to the way he actually uses VLSWM: Neovim (`dots/nvim`), btop (`dots/btop`) and cava (`dots/cava`), all monochrome and following the VLSWM theme, plus the `vlswm-theme-watch` user service that keeps btop and cava in sync with `SUPER+T`.
+The `dots/` folder is my personal environment, tuned to the way I actually use VLSWM: my Neovim (`dots/nvim`), btop (`dots/btop`) and cava (`dots/cava`) configs, all monochrome and following the VLSWM theme, plus the `vlswm-theme-watch` user service that keeps btop and cava in sync with `SUPER+T`.
 
-`install.sh` asks whether to install them and moves anything it replaces to a timestamped `.backup` directory. This environment is opinionated (Zen browser, yazi, a full Neovim setup), so treat it as a ready-made starting point rather than a universal default.
+`install.sh` asks whether to install them and moves anything it replaces to a timestamped `.backup` directory. This is the environment I use personally (Zen browser, yazi, a full Neovim setup). If you install it, you get my setup, not a universal default.
 
 | Neovim, black theme | Neovim, white theme |
 |---|---|
@@ -45,8 +47,8 @@ The `dots/` folder is the author's personal environment, tuned to the way he act
 
 ## How it works
 
-- On start **foot** opens fullscreen as the base layer: it cannot be closed. If it exits (for example `exit` in fish), vlswm starts it again.
-- Any app opens **on top**, fullscreen. Windows are stacked.
+- When I start vlswm, **foot** opens fullscreen as the base layer: I cannot close it. If it exits (for example `exit` in fish), vlswm starts it again.
+- Any app I open appears **on top**, fullscreen. Windows are stacked.
 - `SUPER+←` / `SUPER+→` cycles windows.
 - `SUPER+Q` closes the focused window. The base foot cannot be closed.
 - `SUPER+ENTER` opens a new terminal. The base (first) terminal cannot be closed; new windows are closed with `SUPER+Q`.
@@ -56,13 +58,13 @@ The `dots/` folder is the author's personal environment, tuned to the way he act
 - X11 apps work through `xwayland-satellite`, started on first use.
 - Volume, screen brightness and keyboard backlight changes show a minimal inverted-theme vertical bar at the right edge, vertically centered.
 
-## Recommended browser
+## My browser
 
-**zen-browser** is recommended for vlswm. It behaves predictably in a fullscreen window, and its menus and popups work correctly after the fixes in this release. It is bound to `SUPER+Z` in the default config.
+I use **zen-browser** and recommend it for vlswm. It behaves predictably in a fullscreen window, and its menus and popups work correctly after the fixes in this release. I bound it to `SUPER+Z` in my default config.
 
 ## Apps and colors
 
-`SUPER+T` changes the colors of the compositor, the launcher and the foot terminal. The compositor does not touch other apps, so they may look off: some interfaces stay dark or light, some use their own palette. If an app looks wrong, change its own theme.
+`SUPER+T` changes the colors of my compositor, launcher and foot terminal. I do not touch other apps, so they may look off: some interfaces stay dark or light, some use their own palette. If an app looks wrong, I change its own theme.
 
 ## Dependencies
 
@@ -71,7 +73,7 @@ The `dots/` folder is the author's personal environment, tuned to the way he act
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
 - Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
-- `zen-browser-bin` (AUR) — recommended browser (install it manually with `yay`/`paru`)
+- `zen-browser-bin` (AUR) — my browser; install it manually with `yay`/`paru`
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
 
 ## Build and install
@@ -81,13 +83,13 @@ cmake -B build
 cmake --build build
 ```
 
-Release with LTO is the default. Binary: `build/vlswm`. Install: `sudo ./install.sh` — it builds Release and installs stripped copies to `/usr/bin`. For debugging: `cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo`.
+Release with LTO is the default. Binary: `build/vlswm`. Install: `sudo ./install.sh` — it builds Release and installs stripped copies to `/usr/bin`. This installs the same setup I use. For debugging: `cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo`.
 
 CMake generates the missing protocol headers from `wlr-protocols` and creates compatible copies of the wlroots headers where the C99 `[static N]` syntax is replaced with `[N]` — otherwise a C++ compiler on a clean Arch refuses to build the project. If a system protocol XML is missing or empty, the copy from `protocols/` in the repository is used.
 
 Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c /path/to/config`.
 
-`install.sh` also asks whether to install the personal dotfiles from `dots/` (Neovim, btop, cava) and enables the `vlswm-theme-watch` user service so btop and cava follow the VLSWM theme.
+`install.sh` also asks whether to install my personal dotfiles from `dots/` (the Neovim, btop and cava configs I use) and enables the `vlswm-theme-watch` user service so btop and cava follow the VLSWM theme.
 
 ### Updating
 
@@ -95,13 +97,13 @@ Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c 
 sudo vlswm-update
 ```
 
-The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, the recording/screenshot scripts and the SDDM session file. It re-clones and reinstalls even when that release is already installed. Your config is left untouched. Log out and back in to use the new binaries.
+The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, the recording/screenshot scripts and the SDDM session file. It re-clones and reinstalls even when that release is already installed. I never touch your config during an update. Log out and back in to use the new binaries.
 
 ## Configuration
 
 File: `~/.config/vlswm/config`. Reload without restarting: `SUPER+R`.
 
-The default config in the repository is hardware-agnostic and may gain new options over time; check `config/config` on GitHub after updating. Every release lists the new config keys.
+I keep the default config in the repository hardware-agnostic, and it may gain new options over time; check `config/config` on GitHub after updating. Every release lists the new config keys.
 
 Combos are written as `MODIFIERS+KEY`. Modifiers: `SUPER`, `SHIFT`, `CTRL`, `ALT`. One action may have several keys separated by commas.
 
@@ -211,7 +213,7 @@ foot 1.28 or newer is required: older versions do not know the `[colors-dark]` /
 wf-recorder -f record.mp4     # whole screen, Ctrl+C to stop
 ```
 
-Only the whole screen is recorded. Capturing individual windows requires foreign-toplevel, which vlswm does not implement. While recording vlswm disables direct scanout and composites every frame.
+I record only the whole screen. Capturing individual windows requires foreign-toplevel, which vlswm does not implement. While recording vlswm disables direct scanout and composites every frame.
 
 ## Taking screenshots
 
@@ -219,7 +221,7 @@ Only the whole screen is recorded. Capturing individual windows requires foreign
 
 ## Notifications
 
-vlswm is the notification daemon: it owns `org.freedesktop.Notifications`, so notifications from any app (Telegram, mail, scripts) appear on the left, vertically centered, as inverted-theme cards. Up to 3 cards are shown, each for 4 seconds. `SUPER+N` opens the panel with the last 50 notifications; `Esc` closes it, `C` clears the history. Recording start/stop and config reloads also post notifications.
+vlswm is my notification daemon: it owns `org.freedesktop.Notifications`, so notifications from any app (Telegram, mail, scripts) appear on the left, vertically centered, as inverted-theme cards. Up to 3 cards are shown, each for 4 seconds. `SUPER+N` opens the panel with the last 50 notifications; `Esc` closes it, `C` clears the history. Recording start/stop and config reloads also post notifications.
 
 Only one notification daemon can own the name: stop `mako`, `dunst` or another daemon if one is running.
 
@@ -231,7 +233,7 @@ At session start vlswm runs `wl-paste --watch cliphist store`, so copying in any
 
 ## vlswmstat
 
-`vlswmstat` is a compact monochrome dashboard: hostname, distro, kernel, uptime, shell, terminal, CPU, memory, disks, network, sensors, battery and VLSWM data. The large clock and date update every second.
+`vlswmstat` is my compact monochrome dashboard: hostname, distro, kernel, uptime, shell, terminal, CPU, memory, disks, network, sensors, battery and VLSWM data. The large clock and date update every second.
 
 ```bash
 vlswmstat           # live dashboard, quit with q or Esc
@@ -243,7 +245,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 
 `install.sh` adds `~/.config/fish/conf.d/vlswmstat.fish`, so the dashboard is shown as a greeting when the base terminal starts. New terminals (`SUPER+ENTER`) have no greeting. To disable it, comment out the `vlswmstat` line in that file.
 
-## Default keybindings
+## My default keybindings
 
 | Keys | Action |
 |---|---|
@@ -285,20 +287,20 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `scripts/vlswm-screenshot` — region selection and screenshot.
 - `scripts/vlswm-mic` — microphone toggle for recording.
 - `vlswm-update` — installs the latest release.
-- `dots/` — personal Neovim, btop and cava configs and the theme watcher.
+- `dots/` — my personal Neovim, btop and cava configs and the theme watcher.
 
 ## Battery
 
-On laptops TLP sets `CPU_SCALING_GOVERNOR_ON_BAT=powersave` on battery. With the `intel_cpufreq` driver (intel_pstate in passive mode, as on older Intel CPUs) that governor keeps the minimum frequency even under full load: 800 MHz instead of 2.9 GHz turbo. The whole system becomes 3–4 times slower and apps take much longer to start.
+On my laptop TLP sets `CPU_SCALING_GOVERNOR_ON_BAT=powersave` on battery. With the `intel_cpufreq` driver (intel_pstate in passive mode, as on older Intel CPUs) that governor keeps the minimum frequency even under full load: 800 MHz instead of 2.9 GHz turbo. The whole system becomes 3–4 times slower and apps take much longer to start.
 
-Interactive work needs `schedutil` and turbo enabled. In `/etc/tlp.conf`:
+For my interactive work I need `schedutil` and turbo enabled. In `/etc/tlp.conf` I set:
 
 ```ini
 CPU_SCALING_GOVERNOR_ON_BAT=schedutil
 CPU_BOOST_ON_BAT=1
 ```
 
-TLP reads `/etc/tlp.conf` last, so values in `/etc/tlp.d/*.conf` will not override these lines. Apply with `sudo tlp start`. At idle schedutil still drops to the minimum frequency, so idle power draw does not grow.
+TLP reads `/etc/tlp.conf` last, so values in `/etc/tlp.d/*.conf` will not override these lines. I apply it with `sudo tlp start`. At idle schedutil still drops to the minimum frequency, so idle power draw does not grow.
 
 ## License
 
