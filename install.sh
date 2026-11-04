@@ -161,6 +161,7 @@ main() {
   install -m 755 -s "$SCRIPT_DIR/build/vlswm" "$INSTALL_DIR/vlswm"
   install -m 755 -s "$SCRIPT_DIR/build/vlswmstat" "$INSTALL_DIR/vlswmstat"
   install -m 755 "$SCRIPT_DIR/vlswm-update" "$INSTALL_DIR/vlswm-update"
+  install -m 755 "$SCRIPT_DIR/scripts/vlswm-config-merge" "$INSTALL_DIR/vlswm-config-merge"
   sudo -u "$REAL_USER" install -Dm755 "$SCRIPT_DIR/scripts/vlswm-record" \
     "$REAL_HOME/.local/bin/vlswm-record"
   sudo -u "$REAL_USER" install -Dm755 "$SCRIPT_DIR/scripts/vlswm-screenshot" \
@@ -170,6 +171,7 @@ main() {
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswmstat"
   echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm-update"
+  echo -e "  ${GREEN}✓${NC} Installed: $INSTALL_DIR/vlswm-config-merge"
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-record"
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-screenshot"
   echo -e "  ${GREEN}✓${NC} Installed: $REAL_HOME/.local/bin/vlswm-mic"

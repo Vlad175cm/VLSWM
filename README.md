@@ -99,7 +99,7 @@ Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c 
 sudo vlswm-update
 ```
 
-The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, the recording/screenshot scripts and the SDDM session file. It re-clones and reinstalls even when that release is already installed. I never touch your config during an update. Log out and back in to use the new binaries.
+The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, the recording/screenshot scripts and the SDDM session file. It re-clones and reinstalls even when that release is already installed. Existing config values are never overwritten: if a release adds new options, they are appended to your config and the old file is saved as `config.backup.YYYY-MM-DD-HHMMSS`. Log out and back in to use the new binaries.
 
 ## Configuration
 
@@ -298,6 +298,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `scripts/vlswm-record` — screen recording via wf-recorder.
 - `scripts/vlswm-screenshot` — region selection and screenshot.
 - `scripts/vlswm-mic` — microphone toggle for recording.
+- `scripts/vlswm-config-merge` — appends new config options during an update.
 - `vlswm-update` — installs the latest release.
 - `dots/` — my personal Neovim, btop and cava configs and the theme watcher.
 

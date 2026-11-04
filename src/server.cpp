@@ -1170,6 +1170,7 @@ void Server::check_config() {
         "input.layout", "input.layout_options", "input.scroll_speed",
         "launcher.terminal", "launcher.file_manager", "launcher.font",
         "launcher.duration",
+        "output.scale", "record.audio",
         "xwayland.satellite", "xwayland.display",
         "theme.foot",
     };

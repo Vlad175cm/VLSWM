@@ -55,6 +55,7 @@ install -m 644 "$NEW/vlswm.desktop" /usr/share/wayland-sessions/vlswm.desktop
 install -Dm755 "$NEW/scripts/vlswm-record" /usr/bin/vlswm-record
 install -Dm755 "$NEW/scripts/vlswm-screenshot" /usr/bin/vlswm-screenshot
 install -Dm755 "$NEW/scripts/vlswm-mic" /usr/bin/vlswm-mic
+install -m 755 "$NEW/scripts/vlswm-config-merge" /usr/bin/vlswm-config-merge
 
 if [ -n "$REAL_HOME" ] && [ -d "$REAL_HOME/.local/bin" ]; then
     install -m 755 "$NEW/scripts/vlswm-record" "$REAL_HOME/.local/bin/vlswm-record"
@@ -64,10 +65,20 @@ if [ -n "$REAL_HOME" ] && [ -d "$REAL_HOME/.local/bin" ]; then
         "$REAL_HOME/.local/bin/vlswm-screenshot" "$REAL_HOME/.local/bin/vlswm-mic"
 fi
 
+echo "==> Merging new config options"
+if [ -n "$REAL_HOME" ] && [ -f "$REAL_HOME/.config/vlswm/config" ]; then
+    if ! sudo -u "$REAL_USER" "$NEW/scripts/vlswm-config-merge" \
+        "$SRC/config/config" "$NEW/config/config" "$REAL_HOME/.config/vlswm/config"; then
+        echo "    warning: config merge failed, your config is unchanged" >&2
+    fi
+else
+    echo "    no user config, skipped"
+fi
+
 echo "==> Replacing the source tree"
 rm -rf "$SRC"
 mv "$NEW" "$SRC"
 
 echo "==> Installed $(/usr/bin/vlswm --version) ($tag)"
-echo "    Config left untouched."
+echo "    Existing config values are preserved."
 echo "    Log out and back in to use the new binary."

@@ -1,0 +1,95 @@
+#!/bin/bash
+# Append config options introduced by a new release to the user's config.
+# Existing values and custom keys are never touched.
+#
+# Usage: vlswm-config-merge <old-default> <new-default> <user-config>
+
+set -eu
+
+old_cfg="${1:-}"
+new_cfg="${2:-}"
+user_cfg="${3:-}"
+
+if [ ! -f "$old_cfg" ] || [ ! -f "$new_cfg" ] || [ ! -f "$user_cfg" ]; then
+    exit 0
+fi
+
+keys() {
+    awk '
+        /^[ \t]*\[/ {
+            s = $0
+            sub(/^[ \t]*\[/, "", s)
+            sub(/\].*$/, "", s)
+            gsub(/[ \t]/, "", s)
+            next
+        }
+        /^[ \t]*[#;]/ { next }
+        /^[ \t]*[^=]+=/ {
+            k = $0
+            sub(/^[ \t]*/, "", k)
+            sub(/[ \t]*=.*/, "", k)
+            print s "." k
+        }
+    ' "$1" | sort -u
+}
+
+old_keys=$(mktemp)
+new_keys=$(mktemp)
+user_keys=$(mktemp)
+missing=$(mktemp)
+block=$(mktemp)
+trap 'rm -f "$old_keys" "$new_keys" "$user_keys" "$missing" "$block"' EXIT
+
+keys "$old_cfg" >"$old_keys" || true
+keys "$new_cfg" >"$new_keys" || true
+keys "$user_cfg" >"$user_keys" || true
+
+# Options that are new in this release and absent from the user's config.
+comm -13 "$old_keys" "$new_keys" >"$missing"
+comm -23 "$missing" "$user_keys" >"$missing.tmp"
+mv "$missing.tmp" "$missing"
+
+if [ ! -s "$missing" ]; then
+    echo "Config: no new options."
+    exit 0
+fi
+
+awk -v list="$missing" '
+    BEGIN { while ((getline k < list) > 0) want[k] = 1; cur = "" }
+    /^[ \t]*\[/ {
+        s = $0
+        sub(/^[ \t]*\[/, "", s)
+        sub(/\].*$/, "", s)
+        gsub(/[ \t]/, "", s)
+        next
+    }
+    /^[ \t]*[#;]/ { next }
+    /^[ \t]*[^=]+=/ {
+        k = $0
+        sub(/^[ \t]*/, "", k)
+        sub(/[ \t]*=.*/, "", k)
+        if ((s "." k) in want) {
+            if (s != cur) {
+                if (cur != "") print ""
+                print "[" s "]"
+                cur = s
+            }
+            print $0
+        }
+    }
+' "$new_cfg" >"$block"
+
+if [ ! -s "$block" ]; then
+    echo "Config: no new options."
+    exit 0
+fi
+
+backup="$user_cfg.backup.$(date +%Y-%m-%d-%H%M%S)"
+cp -a "$user_cfg" "$backup"
+{
+    printf '\n# New options added by vlswm-update (%s)\n' "$(date +%F)"
+    cat "$block"
+} >>"$user_cfg"
+
+count=$(wc -l <"$missing")
+echo "Config: added $count new option(s); backup: $backup"
