@@ -72,6 +72,8 @@
 - `wlr-protocols` — из его XML при сборке генерируются заголовки протоколов
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
 - Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
+- `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — выбор файлов в GTK-приложениях
+- `xdg-desktop-portal-termfilechooser` (AUR) — открывает `yazi` в диалоге выбора файлов; без него используется GTK-диалог
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `zen-browser-bin` (AUR) — мой браузер; ставится вручную через `yay`/`paru`
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
@@ -224,6 +226,16 @@ wf-recorder -f record.mp4     # весь экран, Ctrl+C — останови
 vlswm — мой демон уведомлений: владеет `org.freedesktop.Notifications`, поэтому уведомления любых приложений (Telegram, почта, скрипты) появляются слева по центру в виде карточек в цветах инверсной темы. Одновременно видно до 3 карточек, каждая живёт 4 секунды. `SUPER+N` открывает панель с последними 50 уведомлениями; `Esc` закрывает, `C` очищает историю. Начало/конец записи и перезагрузка конфига тоже показываются уведомлениями.
 
 Имя может занимать только один демон: если запущены `mako`, `dunst` или другой демон — останови их.
+
+## Выбор файлов
+
+GTK-приложения (Zen, LocalSend, …) открывают диалог выбора файлов через `xdg-desktop-portal`: vlswm ставит `GTK_USE_PORTAL=1` и экспортирует окружение сессии, поэтому диалог работает отдельным процессом. FileChooser-портал направлен в `xdg-desktop-portal-termfilechooser`, который открывает `yazi` в окне `foot`. `Enter` подтверждает, `Esc` отменяет; выбранный путь возвращается приложению. Для сохранения показывается короткий запрос пути в терминале.
+
+`install.sh` ставит `~/.config/xdg-desktop-portal/portals.conf`, конфиг termfilechooser и `yazi-wrapper.sh`. Сам backend — в AUR; без него портал откатывается на GTK-диалог. После изменения wrapper перезапусти портал:
+
+```bash
+systemctl --user restart xdg-desktop-portal-termfilechooser xdg-desktop-portal
+```
 
 ## История буфера обмена
 

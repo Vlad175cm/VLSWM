@@ -1,0 +1,4 @@
+[filechooser]
+cmd=yazi-wrapper.sh
+default_dir=$HOME
+create_help_file=0

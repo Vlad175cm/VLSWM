@@ -72,6 +72,8 @@ I use **zen-browser** and recommend it for vlswm. It behaves predictably in a fu
 - `wlr-protocols` — protocol headers are generated from its XML at build time
 - wayland, xkbcommon, pixman, libinput, cairo, pango, pangocairo, libsystemd (sd-bus)
 - Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
+- `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — file pickers in GTK apps
+- `xdg-desktop-portal-termfilechooser` (AUR) — opens `yazi` in file pickers; without it the GTK dialog is used
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
 - `zen-browser-bin` (AUR) — my browser; install it manually with `yay`/`paru`
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
@@ -224,6 +226,16 @@ I record only the whole screen. Capturing individual windows requires foreign-to
 vlswm is my notification daemon: it owns `org.freedesktop.Notifications`, so notifications from any app (Telegram, mail, scripts) appear on the left, vertically centered, as inverted-theme cards. Up to 3 cards are shown, each for 4 seconds. `SUPER+N` opens the panel with the last 50 notifications; `Esc` closes it, `C` clears the history. Recording start/stop and config reloads also post notifications.
 
 Only one notification daemon can own the name: stop `mako`, `dunst` or another daemon if one is running.
+
+## File pickers
+
+GTK apps (Zen, LocalSend, …) open their file dialogs through `xdg-desktop-portal`: vlswm sets `GTK_USE_PORTAL=1` and exports the session environment, so the dialog runs outside the app. The FileChooser portal is routed to `xdg-desktop-portal-termfilechooser`, which opens `yazi` in a `foot` window. `Enter` confirms, `Esc` cancels; the selected path is written back to the app. Saving uses a short path prompt in the terminal.
+
+`install.sh` installs `~/.config/xdg-desktop-portal/portals.conf`, the termfilechooser config and `yazi-wrapper.sh`. The backend itself is in the AUR; without it the portal falls back to the GTK dialog. After changing the wrapper, restart the portal:
+
+```bash
+systemctl --user restart xdg-desktop-portal-termfilechooser xdg-desktop-portal
+```
 
 ## Clipboard history
 

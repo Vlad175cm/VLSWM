@@ -38,6 +38,7 @@ install_dependencies() {
     foot fish xwayland-satellite \
     grim slurp wl-clipboard wf-recorder cliphist \
     brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa \
+    xdg-desktop-portal xdg-desktop-portal-gtk \
     yazi neovim btop cava
 }
 
@@ -184,7 +185,7 @@ main() {
   chown "$REAL_USER:$REAL_USER" "$CONFIG_DIR/config"
   echo -e "  ${GREEN}✓${NC} Installed: $CONFIG_DIR/config"
 
-  echo -e "${GREEN}[5/8]${NC} Installing foot configuration..."
+  echo -e "${GREEN}[5/8]${NC} Installing foot and file chooser configuration..."
   if [ ! -d "$SCRIPT_DIR/config/foot" ]; then
     echo -e "${RED}Error: foot config not found in $SCRIPT_DIR/config/foot${NC}"
     exit 1
@@ -208,6 +209,40 @@ main() {
   cp "$SCRIPT_DIR/config/environment.d/10-vlswm.conf" "$ENV_DIR/10-vlswm.conf"
   chown "$REAL_USER:$REAL_USER" "$ENV_DIR/10-vlswm.conf"
   echo -e "  ${GREEN}✓${NC} Installed: $ENV_DIR/10-vlswm.conf"
+
+  PORTAL_DIR="$REAL_HOME/.config/xdg-desktop-portal"
+  TERMFILE_DIR="$REAL_HOME/.config/xdg-desktop-portal-termfilechooser"
+  YAZI_CHOOSER_DIR="$REAL_HOME/.config/yazi-chooser"
+  sudo -u "$REAL_USER" mkdir -p "$PORTAL_DIR" "$TERMFILE_DIR" "$YAZI_CHOOSER_DIR"
+  for pair in \
+    "config/xdg-desktop-portal/portals.conf:$PORTAL_DIR/portals.conf" \
+    "config/xdg-desktop-portal-termfilechooser/config:$TERMFILE_DIR/config" \
+    "config/xdg-desktop-portal-termfilechooser/yazi-wrapper.sh:$TERMFILE_DIR/yazi-wrapper.sh" \
+    "config/yazi-chooser/keymap.toml:$YAZI_CHOOSER_DIR/keymap.toml"; do
+    src="${pair%%:*}"
+    dst="${pair#*:}"
+    if [ -f "$dst" ]; then
+      cp "$dst" "$dst.backup"
+      chown "$REAL_USER:$REAL_USER" "$dst.backup"
+    fi
+    cp "$SCRIPT_DIR/$src" "$dst"
+    chown "$REAL_USER:$REAL_USER" "$dst"
+  done
+  chmod 755 "$TERMFILE_DIR/yazi-wrapper.sh"
+  echo -e "  ${GREEN}✓${NC} Installed: file chooser (yazi via xdg-desktop-portal)"
+
+  if [ ! -x /usr/lib/xdg-desktop-portal-termfilechooser ]; then
+    echo -e "  ${YELLOW}⚠${NC}  Install xdg-desktop-portal-termfilechooser (AUR) to use yazi in file pickers; without it the GTK dialog is used."
+  fi
+
+  local uid
+  uid="$(id -u "$REAL_USER")"
+  if sudo -u "$REAL_USER" env XDG_RUNTIME_DIR="/run/user/$uid" \
+      systemctl --user restart xdg-desktop-portal-termfilechooser.service xdg-desktop-portal.service >/dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${NC} Restarted the portal services"
+  else
+    echo -e "  ${YELLOW}⚠${NC}  Restart the portal after login: systemctl --user restart xdg-desktop-portal-termfilechooser xdg-desktop-portal"
+  fi
 
   FISH_CONF_DIR="$REAL_HOME/.config/fish/conf.d"
   sudo -u "$REAL_USER" mkdir -p "$FISH_CONF_DIR"
