@@ -56,6 +56,7 @@ The `dots/` folder is my personal environment, tuned to the way I actually use V
 - `SUPER+T` toggles the theme: black ↔ white. The screen background, launcher frame and input field change. The foot theme changes in **all** terminal windows too: vlswm sends `SIGUSR1` (black) or `SIGUSR2` (white) to every window, without restarting it.
 - Window animation: fade + 14 px rise on open and 10 px on close, 200 ms. The launcher appears instantly; `[launcher] duration` sets its delay in ms (0 — no animation).
 - X11 apps work through `xwayland-satellite`, started on first use.
+- Drag and drop works with pointer drags: tabs, files and other drag sources. The drag icon follows the cursor. While dragging, `SUPER+←` / `SUPER+→` raises the next window, so you can drop onto another fullscreen app.
 - Volume, screen brightness and keyboard backlight changes show a minimal inverted-theme vertical bar at the right edge, vertically centered.
 
 ## My browser

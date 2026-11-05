@@ -109,6 +109,7 @@ struct Server {
     struct wlr_scene_tree *scene_apps = nullptr;
     struct wlr_scene_tree *scene_overlay = nullptr;
     struct wlr_scene_tree *scene_layers = nullptr;
+    struct wlr_scene_tree *drag_icon = nullptr;
     struct wlr_scene_rect *background = nullptr;
 
     struct wlr_seat *seat = nullptr;
@@ -152,6 +153,8 @@ struct Server {
     struct wl_listener request_set_selection = {};
     struct wl_listener request_set_primary_selection = {};
     struct wl_listener request_start_drag = {};
+    struct wl_listener start_drag = {};
+    struct wl_listener drag_icon_destroy = {};
     struct wl_listener request_activate = {};
     struct wl_listener request_set_cursor = {};
 

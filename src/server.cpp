@@ -37,9 +37,23 @@ static void append_terminal_size_args(Server *server, std::vector<std::string> &
 static const uint32_t MODS_MASK = WLR_MODIFIER_LOGO | WLR_MODIFIER_SHIFT |
                                   WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT;
 
+static bool node_is_inside(struct wlr_scene_node *node, struct wlr_scene_tree *tree) {
+    for (; node; node = node->parent ? &node->parent->node : nullptr) {
+        if (node == &tree->node) return true;
+    }
+    return false;
+}
+
 View *desktop_view_at(Server *server, double lx, double ly,
                       struct wlr_surface **surface, double *sx, double *sy) {
     struct wlr_scene_node *node = wlr_scene_node_at(&server->scene->tree.node, lx, ly, sx, sy);
+    if (node && server->drag_icon && node_is_inside(node, server->drag_icon)) {
+        // The drag icon follows the cursor and must not steal the pointer
+        // focus from the drop target.
+        wlr_scene_node_set_enabled(&server->drag_icon->node, false);
+        node = wlr_scene_node_at(&server->scene->tree.node, lx, ly, sx, sy);
+        wlr_scene_node_set_enabled(&server->drag_icon->node, true);
+    }
     if (!node || node->type != WLR_SCENE_NODE_BUFFER) return nullptr;
     struct wlr_scene_buffer *scene_buffer = wlr_scene_buffer_from_node(node);
     struct wlr_scene_surface *scene_surface = wlr_scene_surface_try_from_buffer(scene_buffer);
@@ -800,10 +814,29 @@ static void handle_request_start_drag(wl_listener *listener, void *data) {
     struct wlr_seat_request_start_drag_event *event =
         (struct wlr_seat_request_start_drag_event *)data;
     if (wlr_seat_validate_pointer_grab_serial(server->seat, event->origin, event->serial)) {
-        wlr_seat_start_drag(server->seat, event->drag, event->serial);
+        wlr_seat_start_pointer_drag(server->seat, event->drag, event->serial);
     } else {
         wlr_data_source_destroy(event->drag->source);
     }
+}
+
+static void handle_start_drag(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, start_drag);
+    struct wlr_drag *drag = (struct wlr_drag *)data;
+    if (!drag->icon) return;
+    server->drag_icon = wlr_scene_drag_icon_create(&server->scene->tree, drag->icon);
+    if (server->drag_icon) {
+        wlr_scene_node_set_position(&server->drag_icon->node, server->cursor->x,
+                                    server->cursor->y);
+    }
+    wl_signal_add(&drag->icon->events.destroy, &server->drag_icon_destroy);
+}
+
+static void handle_drag_icon_destroy(wl_listener *listener, void *data) {
+    (void)data;
+    Server *server = wl_container_of(listener, server, drag_icon_destroy);
+    server->drag_icon = nullptr;
+    wl_list_remove(&listener->link);
 }
 
 static void handle_request_activate(wl_listener *listener, void *data) {
@@ -825,6 +858,10 @@ static void handle_request_activate(wl_listener *listener, void *data) {
 }
 
 static void process_cursor_motion(Server *server, uint32_t time_msec) {
+    if (server->drag_icon) {
+        wlr_scene_node_set_position(&server->drag_icon->node, server->cursor->x,
+                                    server->cursor->y);
+    }
     double sx = 0, sy = 0;
     struct wlr_surface *surface = nullptr;
     desktop_view_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
@@ -986,6 +1023,9 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     wl_signal_add(&seat->events.request_set_primary_selection, &request_set_primary_selection);
     request_start_drag.notify = handle_request_start_drag;
     wl_signal_add(&seat->events.request_start_drag, &request_start_drag);
+    start_drag.notify = handle_start_drag;
+    wl_signal_add(&seat->events.start_drag, &start_drag);
+    drag_icon_destroy.notify = handle_drag_icon_destroy;
     request_set_cursor.notify = handle_request_set_cursor;
     wl_signal_add(&seat->events.request_set_cursor, &request_set_cursor);
     if (xdg_activation) {
@@ -1092,6 +1132,7 @@ void Server::finish() {
         drop_listener(&new_xdg_surface);
         drop_listener(&new_layer_surface);
         drop_listener(&new_decoration);
+        drop_listener(&new_virtual_keyboard);
         drop_listener(&cursor_motion);
         drop_listener(&cursor_motion_absolute);
         drop_listener(&cursor_button);
@@ -1100,6 +1141,8 @@ void Server::finish() {
         drop_listener(&request_set_selection);
         drop_listener(&request_set_primary_selection);
         drop_listener(&request_start_drag);
+        drop_listener(&start_drag);
+        drop_listener(&drag_icon_destroy);
         drop_listener(&request_activate);
         drop_listener(&request_set_cursor);
         if (repeat_timer) {
@@ -1359,6 +1402,7 @@ void Server::cycle_next() {
     stack.insert(stack.begin(), top);
     focus_top();
     update_visibility();
+    process_cursor_motion(this, (uint32_t)(anim_now_ns() / 1000000ULL));
     request_frame();
 }
 
@@ -1377,6 +1421,7 @@ void Server::cycle_prev() {
     stack.push_back(bottom);
     focus_top();
     update_visibility();
+    process_cursor_motion(this, (uint32_t)(anim_now_ns() / 1000000ULL));
     request_frame();
 }
 
