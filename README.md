@@ -88,6 +88,8 @@ cmake --build build
 
 Release with LTO is the default. Binary: `build/vlswm`. Install: `sudo ./install.sh` — it builds Release and installs stripped copies to `/usr/bin`. This installs the same setup I use. For debugging: `cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo`.
 
+Headless smoke test: `./scripts/vlswm-smoke-test` starts vlswm with the headless backend, captures a 1280×720 frame with `grim` and checks a clean exit.
+
 CMake generates the missing protocol headers from `wlr-protocols` and creates compatible copies of the wlroots headers where the C99 `[static N]` syntax is replaced with `[N]` — otherwise a C++ compiler on a clean Arch refuses to build the project. If a system protocol XML is missing or empty, the copy from `protocols/` in the repository is used.
 
 Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c /path/to/config`.

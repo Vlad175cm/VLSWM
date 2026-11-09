@@ -14,9 +14,11 @@ jobs:
           pacman -Syu --noconfirm --needed \
             git cmake gcc make pkgconf \
             wayland wayland-protocols wlroots0.20 libxkbcommon pixman libinput \
-            cairo pango wlr-protocols
+            cairo pango wlr-protocols grim
       - uses: actions/checkout@v4
       - name: Build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j"$(nproc)"
+      - name: Smoke test
+        run: ./scripts/vlswm-smoke-test

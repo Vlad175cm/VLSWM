@@ -1,0 +1,62 @@
+#!/bin/bash
+# Headless smoke test: start vlswm, take a frame with grim and stop cleanly.
+# Usage: ./scripts/vlswm-smoke-test
+
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+build="${BUILD_DIR:-$root/build}"
+runtime="$(mktemp -d "${TMPDIR:-/tmp}/vlswm-smoke.XXXXXX")"
+pid=""
+
+cleanup() {
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        kill -TERM "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+    fi
+    rm -rf "$runtime"
+}
+trap cleanup EXIT
+
+fail() {
+    echo "smoke: FAIL: $1" >&2
+    if [ -f "$runtime/vlswm.log" ]; then
+        tail -n 30 "$runtime/vlswm.log" >&2
+    fi
+    exit 1
+}
+
+[ -x "$build/vlswm" ] || fail "missing $build/vlswm (run cmake --build build first)"
+
+sed 's|^terminal = "foot"|terminal = "/bin/cat"|' "$root/config/config" >"$runtime/config"
+grep -q '^terminal = "/bin/cat"' "$runtime/config" ||
+    fail "could not replace the base terminal in config/config"
+
+XDG_RUNTIME_DIR="$runtime" \
+WLR_BACKENDS=headless \
+WLR_RENDERER=pixman \
+WLR_HEADLESS_OUTPUTS=1 \
+    "$build/vlswm" -c "$runtime/config" >"$runtime/vlswm.log" 2>&1 &
+pid=$!
+
+for _ in $(seq 1 50); do
+    [ -S "$runtime/wayland-0" ] && break
+    sleep 0.1
+done
+[ -S "$runtime/wayland-0" ] || fail "wayland-0 socket did not appear"
+
+XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=wayland-0 \
+    timeout 10 grim "$runtime/frame.png" >/dev/null 2>&1 ||
+    fail "grim could not capture the headless output"
+
+[ -s "$runtime/frame.png" ] || fail "empty frame"
+file -b "$runtime/frame.png" | grep -q '^PNG image data, 1280 x 720' ||
+    fail "unexpected frame: $(file -b "$runtime/frame.png")"
+
+kill -TERM "$pid"
+if ! wait "$pid"; then
+    fail "vlswm did not exit cleanly"
+fi
+pid=""
+
+echo "smoke: ok"
