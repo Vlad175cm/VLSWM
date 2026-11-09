@@ -905,7 +905,10 @@ static void handle_cursor_button(wl_listener *listener, void *data) {
         struct wlr_surface *surface = nullptr;
         View *view = desktop_view_at(server, server->cursor->x, server->cursor->y,
                                      &surface, &sx, &sy);
-        if (view && surface) server->focus_view(view, view->wlr_surface());
+        View *top = server->top_view();
+        if (view && surface && (!top || !top->dialog || view == top)) {
+            server->focus_view(view, view->wlr_surface());
+        }
     }
 
     wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
@@ -1367,6 +1370,7 @@ void Server::focus_top() {
 
 void Server::update_visibility() {
     bool active_shown = false;
+    bool show_parent = false;
     bool show_below = false;
     for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
         View *v = *it;
@@ -1375,7 +1379,13 @@ void Server::update_visibility() {
             if (!active_shown) {
                 show = true;
                 active_shown = true;
+                show_parent = v->dialog;
                 show_below = v->fade.active;
+            } else if (show_parent) {
+                if (!v->dialog) {
+                    show = true;
+                    show_parent = false;
+                }
             } else if (show_below) {
                 show = true;
                 show_below = false;
@@ -1598,7 +1608,8 @@ void Server::animate(uint64_t now) {
         View *v = stack[i];
         if (v->slide.active) {
             v->slide.step(now, &v->slide_y);
-            wlr_scene_node_set_position(&v->scene_tree->node, 0, (int)std::lround(v->slide_y));
+            wlr_scene_node_set_position(&v->scene_tree->node, v->base_x,
+                                        v->base_y + (int)std::lround(v->slide_y));
         }
         if (!v->fade.active) continue;
         float o = 1.0f;

@@ -57,6 +57,7 @@ The `dots/` folder is my personal environment, tuned to the way I actually use V
 - Window animation: fade + 14 px rise on open and 10 px on close, 200 ms. The launcher appears instantly; `[launcher] duration` sets its delay in ms (0 — no animation).
 - X11 apps work through `xwayland-satellite`, started on first use.
 - Drag and drop works with pointer drags: tabs, files and other drag sources. The drag icon follows the cursor. While dragging, `SUPER+←` / `SUPER+→` raises the next window, so you can drop onto another fullscreen app.
+- Dialogs (transient or fixed-size windows) open at their natural size and are centered; the parent window stays visible behind them. Fullscreen apps stay fullscreen.
 - Volume, screen brightness and keyboard backlight changes show a minimal inverted-theme vertical bar at the right edge, vertically centered.
 
 ## My browser

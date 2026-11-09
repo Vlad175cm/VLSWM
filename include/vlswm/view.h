@@ -16,8 +16,11 @@ struct View {
     bool closing = false;
     bool terminal = false;
     bool foot = false;
+    bool dialog = false;
     pid_t pid = 0;
     bool initial_configured = false;
+    int base_x = 0;
+    int base_y = 0;
     FadeAnim fade;
     FadeAnim slide;
     float opacity = 1.0f;
@@ -32,7 +35,9 @@ struct View {
 
     struct wlr_surface *wlr_surface();
     void set_opacity(float o);
+    void update_dialog();
     void configure_size();
+    void center();
 
     static void xdg_map(wl_listener *listener, void *data);
     static void xdg_unmap(wl_listener *listener, void *data);
