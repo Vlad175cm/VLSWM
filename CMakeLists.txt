@@ -10,7 +10,6 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(PkgConfig REQUIRED)
-find_package(Threads REQUIRED)
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 
 pkg_check_modules(WAYLAND REQUIRED wayland-server)
@@ -108,7 +107,8 @@ add_custom_target(vlswm-protocols DEPENDS ${VLSWM_PROTOCOL_HEADERS})
 
 add_executable(vlswmstat src/vlswmstat.cpp)
 target_compile_definitions(vlswmstat PRIVATE VLSWM_VERSION="${PROJECT_VERSION}")
-target_compile_options(vlswmstat PRIVATE -Wall -Wextra)
+target_compile_options(vlswmstat PRIVATE -Wall -Wextra
+    -ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 add_executable(vlswm
     src/main.cpp
     src/server.cpp
@@ -154,11 +154,11 @@ target_link_libraries(vlswm PRIVATE
     ${PANGOCAIRO_LIBRARIES}
     ${LIBINPUT_LIBRARIES}
     ${SYSTEMD_LIBRARIES}
-    Threads::Threads
     m
 )
 
-target_compile_options(vlswm PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_compile_options(vlswm PRIVATE -Wall -Wextra -Wno-unused-parameter
+    -ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 target_link_options(vlswm PRIVATE -rdynamic)
 
 foreach(dir ${WAYLAND_LIBRARY_DIRS} ${WLROOTS_LIBRARY_DIRS})

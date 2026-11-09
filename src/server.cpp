@@ -28,8 +28,6 @@
 #include <string>
 #include <vector>
 
-extern char **environ;
-
 static bool is_foot(const std::string &cmd);
 static void append_terminal_theme_args(Server *server, std::vector<std::string> &argv);
 static void append_terminal_size_args(Server *server, std::vector<std::string> &argv);
@@ -174,7 +172,7 @@ static bool is_osd_action(const std::string &name) {
 
 void Server::spawn_file_manager() {
     if (settings.terminal.empty() || settings.file_manager.empty()) return;
-    ensure_satellite();
+    start_satellite();
     std::vector<std::string> argv = {settings.terminal};
     append_terminal_theme_args(this, argv);
     append_terminal_size_args(this, argv);
@@ -185,7 +183,7 @@ void Server::spawn_file_manager() {
 
 pid_t Server::spawn_terminal_command(const std::string &cmd) {
     if (settings.terminal.empty()) return 0;
-    ensure_satellite();
+    start_satellite();
     std::vector<std::string> argv = {settings.terminal};
     append_terminal_theme_args(this, argv);
     append_terminal_size_args(this, argv);
@@ -285,7 +283,7 @@ void Server::start_terminal() {
 
 void Server::spawn_new_terminal() {
     if (settings.terminal.empty()) return;
-    ensure_satellite();
+    start_satellite();
     std::vector<std::string> argv = {settings.terminal};
     append_terminal_theme_args(this, argv);
     append_terminal_size_args(this, argv);
@@ -308,10 +306,6 @@ void Server::start_satellite() {
         satellite_pid = 0;
     }
     satellite_pid = spawn_argv({settings.satellite, settings.satellite_display});
-}
-
-void Server::ensure_satellite() {
-    start_satellite();
 }
 
 void Server::update_portal_env() {
@@ -343,7 +337,7 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
     bool consumed = kb->swallowed && kb->swallowed_keycode == event->keycode;
 
     if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-        if (server->satellite_pid == 0) server->ensure_satellite();
+        if (server->satellite_pid == 0) server->start_satellite();
         xkb_layout_index_t layout = xkb_state_key_get_layout(keyboard->xkb_state, keycode);
         const xkb_keysym_t *active = nullptr;
         int active_n = xkb_keymap_key_get_syms_by_level(keyboard->keymap, keycode, layout, 0,
@@ -963,12 +957,12 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
         goto fail;
     }
 
-    compositor = wlr_compositor_create(wl_display, 6, renderer);
+    wlr_compositor_create(wl_display, 6, renderer);
     xdg_shell = wlr_xdg_shell_create(wl_display, 6);
     layer_shell = wlr_layer_shell_v1_create(wl_display, 4);
     wlr_subcompositor_create(wl_display);
     screencopy = wlr_screencopy_manager_v1_create(wl_display);
-    linux_dmabuf = wlr_linux_dmabuf_v1_create_with_renderer(wl_display, 4, renderer);
+    wlr_linux_dmabuf_v1_create_with_renderer(wl_display, 4, renderer);
     wlr_viewporter_create(wl_display);
     wlr_fractional_scale_manager_v1_create(wl_display, 1);
     wlr_content_type_manager_v1_create(wl_display, 1);
@@ -1313,7 +1307,7 @@ void Server::run_action(int idx) {
         case BindAction::NewTerminal: spawn_new_terminal(); break;
         case BindAction::RestartTerminal: restart_terminal(); break;
         case BindAction::Spawn:
-            ensure_satellite();
+            start_satellite();
             if (is_osd_action(b.name)) {
                 run_sync(b.cmd);
                 show_osd(b.name, b.cmd);

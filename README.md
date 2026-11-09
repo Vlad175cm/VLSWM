@@ -148,6 +148,7 @@ foot = "~/.config/foot"        # foot config directory
 
 [animations]
 duration = 200                 # ms
+curve = "ease-out"             # linear, ease-in, ease-out, ease-in-out
 
 [input]
 repeat_delay = 200             # ms before the first repeat

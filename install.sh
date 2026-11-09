@@ -140,20 +140,9 @@ main() {
   BUILD_CMD="cd '$SCRIPT_DIR' && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build"
   BUILD_LOG="$SCRIPT_DIR/build.log"
   if ! sudo -u "$REAL_USER" bash -c "$BUILD_CMD" >"$BUILD_LOG" 2>&1; then
-    if [ -d "$REAL_HOME/.local/vlswm-sysroot/usr/lib/pkgconfig" ]; then
-      echo -e "${YELLOW}First pass failed — trying with vendored sysroot...${NC}"
-      sudo -u "$REAL_USER" env \
-        PKG_CONFIG_PATH="$REAL_HOME/.local/vlswm-sysroot/usr/lib/pkgconfig" \
-        bash -c "$BUILD_CMD" >"$BUILD_LOG" 2>&1 || {
-        tail -n 25 "$BUILD_LOG" >&2
-        echo -e "${RED}Error: build failed. Full log: $BUILD_LOG${NC}"
-        exit 1
-      }
-    else
-      tail -n 25 "$BUILD_LOG" >&2
-      echo -e "${RED}Error: build failed. Full log: $BUILD_LOG${NC}"
-      exit 1
-    fi
+    tail -n 25 "$BUILD_LOG" >&2
+    echo -e "${RED}Error: build failed. Full log: $BUILD_LOG${NC}"
+    exit 1
   fi
 
   echo -e "${GREEN}[3/8]${NC} Installing binaries to $INSTALL_DIR..."
