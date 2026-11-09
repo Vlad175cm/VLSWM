@@ -4,7 +4,7 @@ English | [Русский](README.ru.md)
 
 This is my personal Wayland shell on **wlroots 0.20**, for Arch Linux and Arch-based distributions. I built it for the way I work: my desktop is a terminal (foot), apps open on top of it fullscreen, and I use only black and white, square corners and no wallpaper.
 
-**Version 1.2.8.**
+**Version 1.2.9.**
 
 > **Supported systems:** Arch Linux and Arch-based distributions only (Manjaro, EndeavourOS, CachyOS, …). Other distributions are not supported.
 >
