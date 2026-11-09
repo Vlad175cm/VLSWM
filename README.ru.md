@@ -77,6 +77,7 @@
 - Рантайм: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (запись), `grim`, `slurp`, `wl-clipboard` (скриншоты и буфер), `cliphist` (история буфера), `brightnessctl` (яркость), `wireplumber` (`wpctl`, громкость), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
 - `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — выбор файлов в GTK-приложениях
 - `xdg-desktop-portal-termfilechooser` (AUR) — открывает `yazi` в диалоге выбора файлов; без него используется GTK-диалог
+- `qt5-declarative` — нужен Qt5-SDDM-greeter для моей темы
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `zen-browser-bin` (AUR) — мой браузер; `install.sh` ставит его через `paru-bin` или `yay-bin`, спросив, какой helper использовать
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения
@@ -96,7 +97,7 @@ CMake сам генерирует недостающие заголовки пр
 
 Запуск из TTY или из SDDM-сессии `vlswm`. Другой конфиг: `vlswm -c /путь/к/config`.
 
-`install.sh` также спрашивает, ставить ли мои личные dotfiles из `dots/` (конфиги Neovim, btop и cava, которыми пользуюсь я), и включает user-сервис `vlswm-theme-watch`, чтобы btop и cava следовали теме VLSWM. Ещё он спрашивает, какой AUR helper использовать (`paru-bin` или `yay-bin`), и ставит через него `zen-browser-bin`.
+`install.sh` также спрашивает, ставить ли мои личные dotfiles из `dots/` (конфиги Neovim, btop и cava, которыми пользуюсь я), и включает user-сервис `vlswm-theme-watch`, чтобы btop и cava следовали теме VLSWM. Ещё он спрашивает, какой AUR helper использовать (`paru-bin` или `yay-bin`), и ставит через него `zen-browser-bin`. Ещё он спрашивает, ставить ли мою SDDM-тему; если да, клонирует `Vlad175cm/vlswm-sddm-theme` в `vlswm-sddm-theme/` и запускает её установщик.
 
 ### Обновление
 

@@ -38,7 +38,7 @@ install_dependencies() {
     foot fish xwayland-satellite \
     grim slurp wl-clipboard wf-recorder cliphist \
     brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa \
-    xdg-desktop-portal xdg-desktop-portal-gtk \
+    qt5-declarative xdg-desktop-portal xdg-desktop-portal-gtk \
     yazi neovim btop cava
 
   install_aur_helper
@@ -179,6 +179,46 @@ install_dots() {
   fi
 }
 
+install_sddm_theme() {
+  local repo="https://github.com/Vlad175cm/vlswm-sddm-theme.git"
+  local dir="$SCRIPT_DIR/vlswm-sddm-theme"
+  local ans=""
+
+  echo -e "${YELLOW}Install my VLSWM SDDM theme? [Y/n]${NC}"
+  read -r ans || ans=""
+  case "$ans" in
+  [nN]*) echo -e "  skipped"; return 0 ;;
+  esac
+
+  if [ -d "$dir/.git" ]; then
+    echo -e "  Updating $dir..."
+    if ! git -c safe.directory="$dir" -C "$dir" pull --ff-only; then
+      echo -e "  ${YELLOW}⚠${NC}  could not update the theme, using the existing clone"
+    fi
+  elif [ -d "$dir" ]; then
+    if [ ! -f "$dir/install.sh" ]; then
+      echo -e "  ${YELLOW}⚠${NC}  $dir exists but is not a theme clone; skipped"
+      return 0
+    fi
+    echo -e "  ${YELLOW}⚠${NC}  $dir is not a git clone, using it as is"
+  else
+    echo -e "  Cloning $repo..."
+    if ! git clone --depth 1 "$repo" "$dir"; then
+      echo -e "  ${YELLOW}⚠${NC}  could not clone the theme; skipped"
+      return 0
+    fi
+    chown -R "$REAL_USER" "$dir" 2>/dev/null || true
+  fi
+
+  if [ ! -f "$dir/install.sh" ]; then
+    echo -e "  ${YELLOW}⚠${NC}  $dir/install.sh not found; skipped"
+    return 0
+  fi
+  if ! bash "$dir/install.sh"; then
+    echo -e "  ${YELLOW}⚠${NC}  SDDM theme installation failed; VLSWM is still installed"
+  fi
+}
+
 main() {
   echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
   echo -e "${GREEN}║     vlswm Installation Script          ║${NC}"
@@ -296,6 +336,8 @@ main() {
   mkdir -p "$SDDM_DIR"
   cp "$SCRIPT_DIR/vlswm.desktop" "$SDDM_DIR/vlswm.desktop"
   echo -e "  ${GREEN}✓${NC} Created: $SDDM_DIR/vlswm.desktop"
+
+  install_sddm_theme
 
   echo -e "${GREEN}[8/8]${NC} Verifying installation..."
   if command -v vlswm &>/dev/null; then

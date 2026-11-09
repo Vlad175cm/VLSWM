@@ -77,6 +77,7 @@ I use **zen-browser** and recommend it for vlswm. It behaves predictably in a fu
 - Runtime: `foot` (>= 1.28), `fish`, `xwayland-satellite`, `wf-recorder` (recording), `grim`, `slurp`, `wl-clipboard` (screenshots and clipboard), `cliphist` (clipboard history), `brightnessctl` (brightness), `wireplumber` (`wpctl`, volume), `yazi`, `neovim`, `btop`, `cava` (dotfiles)
 - `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — file pickers in GTK apps
 - `xdg-desktop-portal-termfilechooser` (AUR) — opens `yazi` in file pickers; without it the GTK dialog is used
+- `qt5-declarative` — required by the Qt5 SDDM greeter for my theme
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
 - `zen-browser-bin` (AUR) — my browser; `install.sh` installs it through `paru-bin` or `yay-bin` after asking which helper to use
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
@@ -96,7 +97,7 @@ CMake generates the missing protocol headers from `wlr-protocols` and creates co
 
 Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c /path/to/config`.
 
-`install.sh` also asks whether to install my personal dotfiles from `dots/` (the Neovim, btop and cava configs I use) and enables the `vlswm-theme-watch` user service so btop and cava follow the VLSWM theme. It also asks which AUR helper to use (`paru-bin` or `yay-bin`) and installs `zen-browser-bin` through it.
+`install.sh` also asks whether to install my personal dotfiles from `dots/` (the Neovim, btop and cava configs I use) and enables the `vlswm-theme-watch` user service so btop and cava follow the VLSWM theme. It also asks which AUR helper to use (`paru-bin` or `yay-bin`) and installs `zen-browser-bin` through it. It also asks whether to install my SDDM theme; if yes, it clones `Vlad175cm/vlswm-sddm-theme` into `vlswm-sddm-theme/` and runs its installer.
 
 ### Updating
 
