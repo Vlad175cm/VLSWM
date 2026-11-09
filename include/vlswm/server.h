@@ -113,6 +113,7 @@ struct Server {
     struct wlr_seat *seat = nullptr;
     struct wlr_cursor *cursor = nullptr;
     struct wlr_xcursor_manager *cursor_mgr = nullptr;
+    struct wlr_cursor_shape_manager_v1 *cursor_shape = nullptr;
     struct wlr_output_layout *output_layout = nullptr;
     struct wlr_scene_output_layout *scene_output_layout = nullptr;
 
@@ -155,6 +156,7 @@ struct Server {
     struct wl_listener drag_icon_destroy = {};
     struct wl_listener request_activate = {};
     struct wl_listener request_set_cursor = {};
+    struct wl_listener request_set_cursor_shape = {};
 
     bool init(std::unique_ptr<IniConfig> cfg);
     void run();

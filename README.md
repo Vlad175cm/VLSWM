@@ -58,6 +58,7 @@ The `dots/` folder is my personal environment, tuned to the way I actually use V
 - X11 apps work through `xwayland-satellite`, started on first use.
 - Drag and drop works with pointer drags: tabs, files and other drag sources. The drag icon follows the cursor. While dragging, `SUPER+←` / `SUPER+→` raises the next window, so you can drop onto another fullscreen app.
 - Dialogs (transient or fixed-size windows) open at their natural size and are centered; the parent window stays visible behind them. Fullscreen apps stay fullscreen.
+- Cursors come from the system theme (`XCURSOR_THEME`, `XCURSOR_SIZE`) and scale with `[output] scale`. Standard cursor shapes use `wp_cursor_shape_v1`, so GTK4 apps like Loupe get the same 24 px cursors; apps with custom cursor surfaces keep them.
 - Volume, screen brightness and keyboard backlight changes show a minimal inverted-theme vertical bar at the right edge, vertically centered.
 
 ## My browser

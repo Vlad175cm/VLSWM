@@ -803,6 +803,24 @@ static void handle_request_set_cursor(wl_listener *listener, void *data) {
                            event->hotspot_x, event->hotspot_y);
 }
 
+static void handle_request_set_cursor_shape(wl_listener *listener, void *data) {
+    Server *server = wl_container_of(listener, server, request_set_cursor_shape);
+    struct wlr_cursor_shape_manager_v1_request_set_shape_event *event =
+        (struct wlr_cursor_shape_manager_v1_request_set_shape_event *)data;
+    if (event->device_type != WLR_CURSOR_SHAPE_MANAGER_V1_DEVICE_TYPE_POINTER) return;
+    if (event->seat_client != server->seat->pointer_state.focused_client) return;
+    const char *name = wlr_cursor_shape_v1_name(event->shape);
+    if (name) wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, name);
+}
+
+static struct wlr_xcursor_manager *create_cursor_manager() {
+    const char *theme = std::getenv("XCURSOR_THEME");
+    const char *size = std::getenv("XCURSOR_SIZE");
+    int cursor_size = size ? std::atoi(size) : 24;
+    if (cursor_size <= 0) cursor_size = 24;
+    return wlr_xcursor_manager_create(theme && *theme ? theme : nullptr, cursor_size);
+}
+
 static void handle_request_start_drag(wl_listener *listener, void *data) {
     Server *server = wl_container_of(listener, server, request_start_drag);
     struct wlr_seat_request_start_drag_event *event =
@@ -1009,10 +1027,16 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
 
     cursor = wlr_cursor_create();
     wlr_cursor_attach_output_layout(cursor, output_layout);
-    cursor_mgr = wlr_xcursor_manager_create(nullptr, 24);
+    cursor_mgr = create_cursor_manager();
     wlr_xcursor_manager_load(cursor_mgr, (float)settings.scale);
+    cursor_shape = wlr_cursor_shape_manager_v1_create(wl_display, 1);
 
     seat = wlr_seat_create(wl_display, "seat0");
+
+    if (cursor_shape) {
+        request_set_cursor_shape.notify = handle_request_set_cursor_shape;
+        wl_signal_add(&cursor_shape->events.request_set_shape, &request_set_cursor_shape);
+    }
 
     request_set_selection.notify = handle_request_set_selection;
     wl_signal_add(&seat->events.request_set_selection, &request_set_selection);
@@ -1142,6 +1166,7 @@ void Server::finish() {
         drop_listener(&drag_icon_destroy);
         drop_listener(&request_activate);
         drop_listener(&request_set_cursor);
+        drop_listener(&request_set_cursor_shape);
         if (repeat_timer) {
             wl_event_source_remove(repeat_timer);
             repeat_timer = nullptr;
