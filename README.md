@@ -2,13 +2,13 @@
 
 English | [Русский](README.ru.md)
 
-This is my personal Wayland shell on **wlroots 0.20**, for Arch Linux and Arch-based distributions. I built it for the way I work: my desktop is a terminal (foot), apps open on top of it fullscreen, and I use only black and white, square corners and no wallpaper.
+This is my personal Wayland shell on **wlroots 0.20**, for Arch Linux and Arch-based distributions. I built it for the way I work and I use it every day: my desktop is a terminal (foot), apps open on top of it fullscreen, and I use only black and white, square corners and no wallpaper.
 
 **Version 1.2.10.**
 
 > **Supported systems:** Arch Linux and Arch-based distributions only (Manjaro, EndeavourOS, CachyOS, …). Other distributions are not supported.
 >
-> **This is my personal setup.** I configured everything for myself: the terminal, keybindings, colors, scripts and dotfiles. When you install vlswm, you get the environment I use personally every day. It is not a universal desktop and I do not try to make it one — change the config if something does not fit you.
+> **I created all of this personally for myself, and I use this environment and these programs every day.** I configured the terminal, keybindings, colors, scripts and dotfiles for my own workflow. When you install vlswm, you get exactly the environment I use personally. It is not a product or a universal desktop, and I do not try to make it one — change the config if something does not fit you.
 >
 > Experimental project. I wrote it with AI help.
 
@@ -76,7 +76,7 @@ I use **zen-browser** and recommend it for vlswm. It behaves predictably in a fu
 - `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — file pickers in GTK apps
 - `xdg-desktop-portal-termfilechooser` (AUR) — opens `yazi` in file pickers; without it the GTK dialog is used
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
-- `zen-browser-bin` (AUR) — my browser; install it manually with `yay`/`paru`
+- `zen-browser-bin` (AUR) — my browser; `install.sh` installs it through `paru-bin` or `yay-bin` after asking which helper to use
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration
 
 ## Build and install
@@ -94,7 +94,7 @@ CMake generates the missing protocol headers from `wlr-protocols` and creates co
 
 Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c /path/to/config`.
 
-`install.sh` also asks whether to install my personal dotfiles from `dots/` (the Neovim, btop and cava configs I use) and enables the `vlswm-theme-watch` user service so btop and cava follow the VLSWM theme.
+`install.sh` also asks whether to install my personal dotfiles from `dots/` (the Neovim, btop and cava configs I use) and enables the `vlswm-theme-watch` user service so btop and cava follow the VLSWM theme. It also asks which AUR helper to use (`paru-bin` or `yay-bin`) and installs `zen-browser-bin` through it.
 
 ### Updating
 

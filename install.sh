@@ -34,12 +34,95 @@ require_arch() {
 install_dependencies() {
   pacman -S --needed --noconfirm wayland wlroots0.20 wayland-protocols \
     libxkbcommon pixman libinput cairo pango wlr-protocols \
-    pkgconf cmake make gcc \
+    pkgconf cmake make gcc base-devel git \
     foot fish xwayland-satellite \
     grim slurp wl-clipboard wf-recorder cliphist \
     brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa \
     xdg-desktop-portal xdg-desktop-portal-gtk \
     yazi neovim btop cava
+
+  install_aur_helper
+}
+
+install_aur_package() {
+  local pkg="$1" dir
+  if ! command -v git >/dev/null 2>&1 || ! command -v makepkg >/dev/null 2>&1; then
+    echo -e "  ${YELLOW}⚠${NC}  git and makepkg are required to build $pkg"
+    return 1
+  fi
+  dir="$(mktemp -d)"
+  chown "$REAL_USER" "$dir" 2>/dev/null || true
+  if ! sudo -u "$REAL_USER" git clone --depth 1 \
+      "https://aur.archlinux.org/$pkg.git" "$dir/$pkg"; then
+    rm -rf "$dir"
+    return 1
+  fi
+  if ! sudo -u "$REAL_USER" bash -c "cd '$dir/$pkg' && makepkg -s --noconfirm"; then
+    rm -rf "$dir"
+    return 1
+  fi
+  if ! pacman -U --noconfirm "$dir/$pkg"/*.pkg.tar.*; then
+    rm -rf "$dir"
+    return 1
+  fi
+  rm -rf "$dir"
+  return 0
+}
+
+install_aur_helper() {
+  if command -v zen-browser >/dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${NC} zen-browser is already installed"
+    return 0
+  fi
+
+  local have_paru="" have_yay="" choice="" helper="" pkg="" def=1
+  command -v paru >/dev/null 2>&1 && have_paru=1
+  command -v yay >/dev/null 2>&1 && have_yay=1
+  [ -n "$have_yay" ] && [ -z "$have_paru" ] && def=2
+
+  echo -e "${YELLOW}My setup installs zen-browser-bin from the AUR: 1) paru-bin  2) yay-bin  3) skip${NC}"
+  read -r -p "  Choice [$def]: " choice || choice="$def"
+  choice="${choice:-$def}"
+  case "$choice" in
+  1) helper=paru; pkg=paru-bin ;;
+  2) helper=yay; pkg=yay-bin ;;
+  3) echo -e "  skipped"; return 0 ;;
+  *)
+    echo -e "  ${YELLOW}⚠${NC}  unknown choice, skipped"
+    return 0
+    ;;
+  esac
+
+  if ! command -v "$helper" >/dev/null 2>&1; then
+    echo -e "  Installing $pkg..."
+    if [ -n "$have_paru" ] && [ "$helper" = "yay" ]; then
+      sudo -u "$REAL_USER" paru -S --needed --noconfirm "$pkg" || true
+    elif [ -n "$have_yay" ] && [ "$helper" = "paru" ]; then
+      sudo -u "$REAL_USER" yay -S --needed --noconfirm "$pkg" || true
+    else
+      install_aur_package "$pkg" || true
+    fi
+  fi
+
+  if ! command -v "$helper" >/dev/null 2>&1; then
+    if [ -n "$have_paru" ]; then
+      helper=paru
+    elif [ -n "$have_yay" ]; then
+      helper=yay
+    fi
+  fi
+
+  if ! command -v "$helper" >/dev/null 2>&1; then
+    echo -e "  ${YELLOW}⚠${NC}  $helper is not available; skipping zen-browser-bin"
+    return 0
+  fi
+
+  echo -e "  Installing zen-browser-bin via $helper..."
+  if sudo -u "$REAL_USER" "$helper" -S --needed --noconfirm zen-browser-bin; then
+    echo -e "  ${GREEN}✓${NC} Installed: zen-browser-bin"
+  else
+    echo -e "  ${YELLOW}⚠${NC}  zen-browser-bin was not installed; run later: $helper -S zen-browser-bin"
+  fi
 }
 
 check_runtime_tools() {
