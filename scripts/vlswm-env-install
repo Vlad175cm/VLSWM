@@ -1,0 +1,57 @@
+#!/bin/bash
+# Install the system environment configs for vlswm.
+# Usage: vlswm-env-install <source-root> <home>
+#
+# Only environment.d, fish conf and the file chooser (portal) configs are
+# touched. ~/.config/vlswm/config, foot.ini and dots/ are left alone.
+
+set -euo pipefail
+
+src="${1:-}"
+home="${2:-}"
+
+if [ -z "$src" ] || [ -z "$home" ]; then
+    echo "usage: vlswm-env-install <source-root> <home>" >&2
+    exit 1
+fi
+if [ ! -d "$src/config" ]; then
+    echo "vlswm-env-install: $src/config not found" >&2
+    exit 1
+fi
+if [ ! -d "$home" ]; then
+    echo "vlswm-env-install: home directory $home not found" >&2
+    exit 1
+fi
+
+install_one() {
+    local from="$1" to="$2" mode="$3" backup
+    if [ ! -f "$from" ]; then
+        echo "vlswm-env-install: missing $from" >&2
+        return 1
+    fi
+    mkdir -p "$(dirname "$to")"
+    if [ -f "$to" ]; then
+        backup="$to.backup.$(date +%Y-%m-%d-%H%M%S)"
+        [ -e "$backup" ] && backup="$backup-$$"
+        cp -a "$to" "$backup"
+        echo "  backup: $backup"
+    fi
+    cp "$from" "$to"
+    chmod "$mode" "$to"
+    echo "  installed: $to"
+}
+
+install_one "$src/config/environment.d/10-vlswm.conf" \
+    "$home/.config/environment.d/10-vlswm.conf" 644
+install_one "$src/config/fish/conf.d/vlswmstat.fish" \
+    "$home/.config/fish/conf.d/vlswmstat.fish" 644
+install_one "$src/config/xdg-desktop-portal/portals.conf" \
+    "$home/.config/xdg-desktop-portal/portals.conf" 644
+install_one "$src/config/xdg-desktop-portal-termfilechooser/config" \
+    "$home/.config/xdg-desktop-portal-termfilechooser/config" 644
+install_one "$src/config/xdg-desktop-portal-termfilechooser/yazi-wrapper.sh" \
+    "$home/.config/xdg-desktop-portal-termfilechooser/yazi-wrapper.sh" 755
+install_one "$src/config/yazi-chooser/keymap.toml" \
+    "$home/.config/yazi-chooser/keymap.toml" 644
+
+echo "env configs installed."

@@ -65,6 +65,20 @@ if [ -n "$REAL_HOME" ] && [ -d "$REAL_HOME/.local/bin" ]; then
         "$REAL_HOME/.local/bin/vlswm-screenshot" "$REAL_HOME/.local/bin/vlswm-mic"
 fi
 
+echo "==> Installing environment configs"
+if [ -n "$REAL_HOME" ] && [ -d "$REAL_HOME" ]; then
+    if ! sudo -u "$REAL_USER" "$NEW/scripts/vlswm-env-install" "$NEW" "$REAL_HOME"; then
+        echo "    warning: environment config install failed" >&2
+    fi
+    uid="$(id -u "$REAL_USER")"
+    if sudo -u "$REAL_USER" env XDG_RUNTIME_DIR="/run/user/$uid" \
+        systemctl --user restart xdg-desktop-portal-termfilechooser.service xdg-desktop-portal.service >/dev/null 2>&1; then
+        echo "    restarted the portal services"
+    fi
+else
+    echo "    no user home, skipped"
+fi
+
 echo "==> Merging new config options"
 if [ -n "$REAL_HOME" ] && [ -f "$REAL_HOME/.config/vlswm/config" ]; then
     if ! sudo -u "$REAL_USER" "$NEW/scripts/vlswm-config-merge" \

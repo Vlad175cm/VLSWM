@@ -102,7 +102,7 @@ Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c 
 sudo vlswm-update
 ```
 
-The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, the recording/screenshot scripts and the SDDM session file. It re-clones and reinstalls even when that release is already installed. Existing config values are never overwritten: if a release adds new options, they are appended to your config and the old file is saved as `config.backup.YYYY-MM-DD-HHMMSS`. Log out and back in to use the new binaries.
+The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, the recording/screenshot scripts and the SDDM session file. It also refreshes the system environment configs (`environment.d`, fish conf and the file chooser portal configs) with a timestamped backup; `~/.config/vlswm/config`, `foot.ini` and `dots/` are not touched. It re-clones and reinstalls even when that release is already installed. Existing config values are never overwritten: if a release adds new options, they are appended to your config and the old file is saved as `config.backup.YYYY-MM-DD-HHMMSS`. Log out and back in to use the new binaries.
 
 ## Configuration
 
@@ -302,6 +302,8 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `scripts/vlswm-screenshot` — region selection and screenshot.
 - `scripts/vlswm-mic` — microphone toggle for recording.
 - `scripts/vlswm-config-merge` — appends new config options during an update.
+- `scripts/vlswm-env-install` — installs environment.d, fish and portal configs.
+- `scripts/vlswm-smoke-test` — headless startup and frame test.
 - `vlswm-update` — installs the latest release.
 - `dots/` — my personal Neovim, btop and cava configs and the theme watcher.
 
