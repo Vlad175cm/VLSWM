@@ -78,6 +78,7 @@ I use **zen-browser** and recommend it for vlswm. It behaves predictably in a fu
 - `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — file pickers in GTK apps
 - `xdg-desktop-portal-termfilechooser` (AUR) — opens `yazi` in file pickers; without it the GTK dialog is used
 - `qt5-declarative` — required by the Qt5 SDDM greeter for my theme
+- `tree-sitter-cli` — builds parsers for the Neovim config (`nvim-treesitter`)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
 - `zen-browser-bin` (AUR) — my browser; `install.sh` installs it through `paru-bin` or `yay-bin` after asking which helper to use
 - `mesa` — software OpenGL, needed in virtual machines without 3D acceleration

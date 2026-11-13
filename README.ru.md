@@ -78,6 +78,7 @@
 - `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — выбор файлов в GTK-приложениях
 - `xdg-desktop-portal-termfilechooser` (AUR) — открывает `yazi` в диалоге выбора файлов; без него используется GTK-диалог
 - `qt5-declarative` — нужен Qt5-SDDM-greeter для моей темы
+- `tree-sitter-cli` — собирает парсеры для конфига Neovim (`nvim-treesitter`)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `zen-browser-bin` (AUR) — мой браузер; `install.sh` ставит его через `paru-bin` или `yay-bin`, спросив, какой helper использовать
 - `mesa` — программный OpenGL, нужен в виртуальных машинах без 3D-ускорения

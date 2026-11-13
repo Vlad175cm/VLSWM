@@ -39,7 +39,7 @@ install_dependencies() {
     grim slurp wl-clipboard wf-recorder cliphist \
     brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa \
     qt5-declarative xdg-desktop-portal xdg-desktop-portal-gtk \
-    yazi neovim btop cava
+    yazi neovim btop cava tree-sitter-cli
 
   install_aur_helper
 }
