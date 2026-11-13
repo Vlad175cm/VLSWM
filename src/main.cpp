@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #ifndef VLSWM_VERSION
-#define VLSWM_VERSION "1.2.14"
+#define VLSWM_VERSION "1.3.0"
 #endif
 
 static Server *g_server = nullptr;
