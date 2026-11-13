@@ -100,6 +100,16 @@ Run from a TTY or from an SDDM session named `vlswm`. Another config: `vlswm -c 
 
 `install.sh` also asks whether to install my personal dotfiles from `dots/` (the Neovim, btop and cava configs I use) and enables the `vlswm-theme-watch` user service so btop and cava follow the VLSWM theme. It also asks which AUR helper to use (`paru-bin` or `yay-bin`) and installs `zen-browser-bin` through it. It also asks whether to install my SDDM theme; if yes, it clones `Vlad175cm/vlswm-sddm-theme` into `vlswm-sddm-theme/` and runs its installer.
 
+### Enable SDDM
+
+After installing, enable the SDDM service so it starts at boot and shows the login screen after a reboot:
+
+```bash
+sudo systemctl enable --now sddm.service
+```
+
+Without this, SDDM will not appear and the system will boot to a TTY.
+
 ### Updating
 
 ```bash
