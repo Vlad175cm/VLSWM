@@ -38,7 +38,7 @@ install_dependencies() {
     foot fish xwayland-satellite \
     grim slurp wl-clipboard wf-recorder cliphist \
     brightnessctl wireplumber sddm ttf-jetbrains-mono-nerd mesa \
-    qt5-declarative qt6-declarative xdg-desktop-portal xdg-desktop-portal-gtk \
+    qt5-declarative qt6-declarative qt6-wayland xdg-desktop-portal xdg-desktop-portal-gtk \
     yazi neovim btop cava tree-sitter-cli
 
   install_aur_helper
@@ -378,6 +378,7 @@ main() {
   echo ""
   echo -e "${YELLOW}Key bindings (defaults):${NC}"
   echo -e "  SUPER+D         - Launcher (type a command, Enter runs it in fish)"
+  echo -e "  SUPER+L         - Lock the session"
   echo -e "  SUPER+Q         - Close the focused window (the terminal cannot be closed)"
   echo -e "  SUPER+LEFT/RIGHT- Switch windows"
   echo -e "  SUPER+T         - Toggle black / white theme (also recolors foot)"

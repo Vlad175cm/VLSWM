@@ -79,6 +79,7 @@ I use **zen-browser** and recommend it for vlswm. It behaves predictably in a fu
 - `xdg-desktop-portal-termfilechooser` (AUR) — opens `yazi` in file pickers; without it the GTK dialog is used
 - `qt5-declarative` — required by the Qt5 SDDM greeter for my theme
 - `qt6-declarative` — Qt6 Quick, required by `vlswm-lock` and the lock screen
+- `qt6-wayland` — Qt6 Wayland platform plugin; without it `vlswm-lock` cannot open a window
 - `tree-sitter-cli` — builds parsers for the Neovim config (`nvim-treesitter`)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
 - `zen-browser-bin` (AUR) — my browser; `install.sh` installs it through `paru-bin` or `yay-bin` after asking which helper to use
@@ -117,7 +118,7 @@ Without this, SDDM will not appear and the system will boot to a TTY.
 sudo vlswm-update
 ```
 
-The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, the recording/screenshot scripts and the SDDM session file. It also refreshes the system environment configs (`environment.d`, fish conf and the file chooser portal configs) with a timestamped backup; `~/.config/vlswm/config`, `foot.ini` and `dots/` are not touched. It re-clones and reinstalls even when that release is already installed. Existing config values are never overwritten: if a release adds new options, they are appended to your config and the old file is saved as `config.backup.YYYY-MM-DD-HHMMSS`. Log out and back in to use the new binaries.
+The command always installs the latest GitHub release: it looks up the newest tag, clones it into `/opt/vlswm`, builds it and replaces `/usr/bin/vlswm`, `/usr/bin/vlswmstat`, `/usr/bin/vlswm-lock`, the lock screen QML, the recording/screenshot scripts and the SDDM session file. After installing, it runs the freshly installed `vlswm-update` once more in `--install-only` mode, so files added in the new release are always installed even when the update started from an older script. It also refreshes the system environment configs (`environment.d`, fish conf and the file chooser portal configs) with a timestamped backup; `~/.config/vlswm/config`, `foot.ini` and `dots/` are not touched. It re-clones and reinstalls even when that release is already installed. Existing config values are never overwritten: if a release adds new options, they are appended to your config and the old file is saved as `config.backup.YYYY-MM-DD-HHMMSS`. Log out and back in to use the new binaries.
 
 ## Configuration
 
@@ -249,7 +250,7 @@ Only one notification daemon can own the name: stop `mako`, `dunst` or another d
 
 ## Lock screen
 
-`SUPER+L` locks the session. The lock screen reuses the QML from my SDDM theme (`/usr/share/sddm/themes/vlswm`); if the theme is not installed, it uses the embedded copy in `/usr/share/vlswm/lock`. The password is checked through PAM (`/etc/pam.d/vlswm-lock`), exactly like SDDM. `T` / `Ctrl+T` toggle the palette, `Ctrl+Shift+P/R/S` power off, reboot or suspend. While the screen is locked, VLSWM keybindings are disabled and all windows are hidden.
+`SUPER+L` locks the session. The lock screen reuses the QML from my SDDM theme (`/usr/share/sddm/themes/vlswm`); if the theme is not installed, it uses the embedded copy in `/usr/share/vlswm/lock`. The password is checked through PAM (`/etc/pam.d/vlswm-lock`), exactly like SDDM; if that file is missing, it falls back to `system-auth`. `T` / `Ctrl+T` toggle the palette, `Ctrl+Shift+P/R/S` power off, reboot or suspend. While the screen is locked, VLSWM keybindings are disabled and all windows are hidden.
 
 ## File pickers
 

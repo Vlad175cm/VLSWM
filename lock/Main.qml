@@ -45,7 +45,7 @@ Rectangle {
         font.family: "JetBrainsMono Nerd Font"
         font.weight: Font.Bold
         font.pixelSize: root.titleSize
-        font.letterSpacing: font.pixelSize * 0.06
+        font.letterSpacing: root.titleSize * 0.06
         renderType: Text.NativeRendering
         x: (root.width - width) / 2
         y: root.active ? 0 : (root.height - height) / 2

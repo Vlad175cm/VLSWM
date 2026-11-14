@@ -135,6 +135,7 @@ struct Server {
     pid_t lock_pid = 0;
     View *lock_view = nullptr;
     struct wl_event_source *lock_timer = nullptr;
+    bool lock_checked = false;
 
     pid_t base_pid = 0;
     pid_t satellite_pid = 0;

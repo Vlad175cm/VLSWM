@@ -1,7 +1,7 @@
 #!/bin/bash
 # Reinstall vlswm from the latest GitHub release.
 # Always installs the newest release, even when it is already installed.
-# Usage: sudo vlswm-update
+# Usage: sudo vlswm-update [--install-only]
 
 set -e
 
@@ -9,6 +9,10 @@ REPO="https://github.com/Vlad175cm/VLSWM.git"
 API="https://api.github.com/repos/Vlad175cm/VLSWM/releases/latest"
 SRC="/opt/vlswm"
 NEW="${SRC}.new"
+INSTALL_ONLY=0
+if [ "${1:-}" = "--install-only" ]; then
+    INSTALL_ONLY=1
+fi
 
 if [ "$EUID" -ne 0 ]; then
     echo "Run with sudo: sudo vlswm-update" >&2
@@ -22,30 +26,40 @@ fi
 REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 
-echo "==> Looking up the latest release"
-tag=""
-if command -v curl >/dev/null 2>&1; then
-    tag="$(curl -fsSL --max-time 20 "$API" 2>/dev/null |
-        grep -o '"tag_name": *"[^"]*"' | head -n 1 |
-        sed 's/.*"\(v[^"]*\)"/\1/')"
-fi
-if [ -z "$tag" ]; then
-    tag="$(git ls-remote --tags --refs "$REPO" 'v*' | awk -F/ '{print $NF}' |
-        sort -V | tail -n 1)"
-fi
-if [ -z "$tag" ]; then
-    echo "Cannot determine the latest release of $REPO" >&2
-    exit 1
-fi
-echo "    $tag"
+if [ "$INSTALL_ONLY" -eq 0 ]; then
+    echo "==> Looking up the latest release"
+    tag=""
+    if command -v curl >/dev/null 2>&1; then
+        tag="$(curl -fsSL --max-time 20 "$API" 2>/dev/null |
+            grep -o '"tag_name": *"[^"]*"' | head -n 1 |
+            sed 's/.*"\(v[^"]*\)"/\1/')"
+    fi
+    if [ -z "$tag" ]; then
+        tag="$(git ls-remote --tags --refs "$REPO" 'v*' | awk -F/ '{print $NF}' |
+            sort -V | tail -n 1)"
+    fi
+    if [ -z "$tag" ]; then
+        echo "Cannot determine the latest release of $REPO" >&2
+        exit 1
+    fi
+    echo "    $tag"
 
-echo "==> Cloning $tag"
-rm -rf "$NEW"
-git clone --depth 1 --branch "$tag" "$REPO" "$NEW"
+    echo "==> Cloning $tag"
+    rm -rf "$NEW"
+    git clone --depth 1 --branch "$tag" "$REPO" "$NEW"
 
-echo "==> Building"
-cmake -B "$NEW/build" -S "$NEW" -DCMAKE_BUILD_TYPE=Release
-cmake --build "$NEW/build" -j"$(nproc)"
+    echo "==> Building"
+    cmake -B "$NEW/build" -S "$NEW" -DCMAKE_BUILD_TYPE=Release
+    cmake --build "$NEW/build" -j"$(nproc)"
+else
+    NEW="$SRC"
+    if [ ! -d "$NEW" ]; then
+        echo "No installed source tree in $SRC; run: sudo vlswm-update" >&2
+        exit 1
+    fi
+    tag="$(/usr/bin/vlswm --version 2>/dev/null | awk '{print $2}')"
+    echo "==> Installing files from $NEW"
+fi
 
 echo "==> Installing"
 install -m 755 -s "$NEW/build/vlswm" /usr/bin/vlswm
@@ -63,6 +77,14 @@ install -Dm755 "$NEW/scripts/vlswm-record" /usr/bin/vlswm-record
 install -Dm755 "$NEW/scripts/vlswm-screenshot" /usr/bin/vlswm-screenshot
 install -Dm755 "$NEW/scripts/vlswm-mic" /usr/bin/vlswm-mic
 install -m 755 "$NEW/scripts/vlswm-config-merge" /usr/bin/vlswm-config-merge
+
+if command -v pacman >/dev/null 2>&1; then
+    for pkg in qt6-declarative qt6-wayland; do
+        if ! pacman -Qq "$pkg" >/dev/null 2>&1; then
+            echo "    warning: $pkg is not installed; the lock screen needs it" >&2
+        fi
+    done
+fi
 
 if [ -n "$REAL_HOME" ] && [ -d "$REAL_HOME/.local/bin" ]; then
     install -m 755 "$NEW/scripts/vlswm-record" "$REAL_HOME/.local/bin/vlswm-record"
@@ -96,9 +118,19 @@ else
     echo "    no user config, skipped"
 fi
 
-echo "==> Replacing the source tree"
-rm -rf "$SRC"
-mv "$NEW" "$SRC"
+if [ "$INSTALL_ONLY" -eq 0 ]; then
+    echo "==> Replacing the source tree"
+    rm -rf "$SRC"
+    mv "$NEW" "$SRC"
+
+    # The script that started this update may be older than the release it
+    # just installed. Run the freshly installed script once more so its file
+    # list decides what is installed; --install-only reuses the tree above.
+    if [ -z "${VLSWM_UPDATE_REEXEC:-}" ] && [ -x /usr/bin/vlswm-update ]; then
+        echo "==> Running the freshly installed update script"
+        VLSWM_UPDATE_REEXEC=1 exec /usr/bin/vlswm-update --install-only
+    fi
+fi
 
 echo "==> Installed $(/usr/bin/vlswm --version) ($tag)"
 echo "    Existing config values are preserved."

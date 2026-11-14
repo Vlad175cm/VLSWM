@@ -193,8 +193,14 @@ pid_t Server::spawn_terminal_command(const std::string &cmd) {
 
 static void reap_children(Server *server) {
     auto &kids = server->children;
-    kids.erase(std::remove_if(kids.begin(), kids.end(), [](pid_t pid) {
-        return waitpid(pid, nullptr, WNOHANG) != 0;
+    kids.erase(std::remove_if(kids.begin(), kids.end(), [server](pid_t pid) {
+        if (waitpid(pid, nullptr, WNOHANG) == 0) return false;
+        // The lock client exited. If it had mapped a window, xdg_destroy has
+        // already unlocked; this catches a client that died before mapping.
+        if (server->locked && pid == server->lock_pid && !server->lock_view) {
+            server->unlock_session();
+        }
+        return true;
     }), kids.end());
 }
 
@@ -308,6 +314,32 @@ void Server::start_satellite() {
     satellite_pid = spawn_argv({settings.satellite, settings.satellite_display});
 }
 
+static std::string find_executable(const char *name) {
+    const char *path = std::getenv("PATH");
+    if (!path || !*path) path = "/usr/local/bin:/usr/bin:/bin";
+    std::stringstream dirs(path);
+    std::string dir;
+    while (std::getline(dirs, dir, ':')) {
+        if (dir.empty()) dir = ".";
+        std::string full = dir + "/" + name;
+        if (access(full.c_str(), X_OK) == 0) return full;
+    }
+    std::string installed = std::string("/usr/bin/") + name;
+    if (access(installed.c_str(), X_OK) == 0) return installed;
+    return {};
+}
+
+static bool executable_in_path(const char *name) {
+    return !find_executable(name).empty();
+}
+
+static void notify_lock_missing(Server *server) {
+    if (server->notifications) {
+        server->notifications->push("vlswm", "Lock screen is not installed",
+                                    "vlswm-lock is missing. Run: sudo vlswm-update", 8000, 0);
+    }
+}
+
 static int on_lock_timer(void *data) {
     Server *server = (Server *)data;
     if (server->locked && !server->lock_view) {
@@ -319,9 +351,16 @@ static int on_lock_timer(void *data) {
 
 void Server::lock_session() {
     if (locked) return;
-    pid_t pid = spawn_argv({"vlswm-lock"});
+    std::string lock_bin = find_executable("vlswm-lock");
+    if (lock_bin.empty()) {
+        wlr_log(WLR_ERROR, "vlswm-lock is not installed");
+        notify_lock_missing(this);
+        return;
+    }
+    pid_t pid = spawn_argv({lock_bin});
     if (pid <= 0) {
         wlr_log(WLR_ERROR, "failed to start vlswm-lock");
+        notify_lock_missing(this);
         return;
     }
     locked = true;
@@ -543,6 +582,16 @@ static void server_new_keyboard(Server *server, struct wlr_input_device *device)
 
     server->keyboard = keyboard;
     wlr_seat_set_keyboard(server->seat, keyboard);
+
+    // A keyboard may appear after the screen is already locked (USB, virtual
+    // keyboard, another seat device). Point it at the lock window immediately.
+    if (server->locked && server->lock_view) {
+        struct wlr_surface *surface = server->lock_view->wlr_surface();
+        if (surface && server->seat->keyboard_state.focused_surface != surface) {
+            wlr_seat_keyboard_notify_enter(server->seat, surface, keyboard->keycodes,
+                                           keyboard->num_keycodes, &keyboard->modifiers);
+        }
+    }
 }
 
 static void configure_libinput(struct wlr_input_device *device) {
@@ -611,6 +660,11 @@ static void handle_new_output(wl_listener *listener, void *data) {
     wlr_scene_rect_set_size(server->background, w, h);
     server->launcher->relayout();
     server->configure_all();
+
+    if (!server->lock_checked) {
+        server->lock_checked = true;
+        if (!executable_in_path("vlswm-lock")) notify_lock_missing(server);
+    }
 }
 
 struct LayerSurface {
@@ -938,6 +992,11 @@ static void process_cursor_motion(Server *server, uint32_t time_msec) {
     double sx = 0, sy = 0;
     struct wlr_surface *surface = nullptr;
     desktop_view_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+
+    if (server->locked &&
+        (!server->lock_view || surface != server->lock_view->wlr_surface())) {
+        surface = nullptr;
+    }
 
     if (surface) {
         if (surface != server->seat->pointer_state.focused_surface) {

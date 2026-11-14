@@ -1,8 +1,6 @@
 #include <QGuiApplication>
 #include <QQuickView>
 #include <QQmlContext>
-#include <QQmlEngine>
-#include <QCursor>
 #include <QFile>
 #include <QProcess>
 #include <QTextStream>
@@ -45,7 +43,12 @@ static bool pam_authenticate_user(const QString &user, const QString &password) 
     struct pam_conv conv = {pam_conversation, &pass};
     pam_handle_t *handle = nullptr;
     QByteArray name = user.toUtf8();
-    int result = pam_start("vlswm-lock", name.constData(), &conv, &handle);
+    // The installer creates /etc/pam.d/vlswm-lock. If it is missing (for
+    // example after a partial update), system-auth is the same PAM stack a
+    // normal login uses, so the lock screen still accepts the password.
+    const char *service = access("/etc/pam.d/vlswm-lock", R_OK) == 0
+        ? "vlswm-lock" : "system-auth";
+    int result = pam_start(service, name.constData(), &conv, &handle);
     if (result == PAM_SUCCESS) result = pam_authenticate(handle, 0);
     if (result == PAM_SUCCESS) result = pam_acct_mgmt(handle, 0);
     if (handle) pam_end(handle, result);
@@ -124,9 +127,19 @@ static QVariantMap read_theme_config(const QString &path) {
 }
 
 int main(int argc, char **argv) {
+    // This is a Wayland client. Without an explicit platform Qt may choose
+    // xcb just because DISPLAY is set, and in Xwayland the lock window is
+    // owned by another PID, so the compositor would not recognise it.
+    if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM")) {
+        qputenv("QT_QPA_PLATFORM", "wayland");
+    }
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("vlswm-lock"));
     QGuiApplication::setDesktopFileName(QStringLiteral("vlswm-lock"));
+
+    if (access("/etc/pam.d/vlswm-lock", R_OK) != 0) {
+        qWarning("vlswm-lock: /etc/pam.d/vlswm-lock is missing, using system-auth");
+    }
 
     QString theme_dir = QStringLiteral("/usr/share/sddm/themes/vlswm");
     QString qml = theme_dir + QStringLiteral("/Main.qml");
