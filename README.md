@@ -329,6 +329,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `scripts/vlswm-smoke-test` — headless startup and frame test.
 - `lock/` — `vlswm-lock` (Qt6 Quick) and the lock screen QML.
 - `vlswm-update` — installs the latest release.
+- `release.sh` — cuts a release from a notes file.
 - `dots/` — my personal Neovim, btop and cava configs and the theme watcher.
 
 ## Battery

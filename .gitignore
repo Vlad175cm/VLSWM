@@ -3,5 +3,4 @@ build.log
 .cache/
 cmake-build-*/
 compile_commands.json
-release.sh
 vlswm-sddm-theme/

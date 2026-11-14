@@ -329,6 +329,7 @@ vlswmstat --version
 - `scripts/vlswm-smoke-test` — headless-старт и проверка кадра.
 - `lock/` — `vlswm-lock` (Qt6 Quick) и QML экрана блокировки.
 - `vlswm-update` — установка последнего релиза.
+- `release.sh` — выпуск релиза из файла с notes.
 - `dots/` — мои личные конфиги Neovim, btop и cava и вотчер темы.
 
 ## Батарея

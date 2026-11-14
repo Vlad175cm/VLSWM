@@ -1,6 +1,9 @@
 import QtQuick 2.15
 import QtQuick.Window 2.15
 
+// Fallback lock screen used when the SDDM theme is not installed. It is the
+// same UI as the theme, minus the SDDM-only user-list helper and demo timer:
+// vlswm-lock always logs in the current user through userModel.lastUser.
 Rectangle {
     id: root
 
@@ -10,7 +13,6 @@ Rectangle {
 
     readonly property var cfg: (typeof config !== "undefined" && config) ? config : ({})
     readonly property string titleText: (cfg.title !== undefined && String(cfg.title).length > 0) ? String(cfg.title) : "VLSWM"
-    readonly property bool demoMode: String(cfg.demo || "false").toLowerCase() === "true"
 
     property bool light: String(cfg.palette || "dark").toLowerCase() === "light"
     property bool flash: false
@@ -86,23 +88,6 @@ Rectangle {
         y: password.y + password.height + 22 * root.u
     }
 
-    // The hidden username list. The name never appears on screen: it is only
-    // needed to log in when SDDM has no remembered last user.
-    ListView {
-        id: userHelper
-        model: (typeof userModel !== "undefined") ? userModel : null
-        currentIndex: 0
-        width: 240
-        height: 160
-        opacity: 0
-        z: -100
-        delegate: Item {
-            width: 240
-            height: 40
-            property string uLogin: model.name || ""
-        }
-    }
-
     Timer {
         id: flashTimer
         interval: 80
@@ -113,16 +98,6 @@ Rectangle {
         interval: 200
         running: true
         onTriggered: password.takeFocus()
-    }
-
-    Timer {
-        id: demoTimer
-        interval: 900
-        running: root.demoMode
-        onTriggered: {
-            password.setText("VLSWM")
-            root.activate()
-        }
     }
 
     Shortcut {
@@ -175,7 +150,6 @@ Rectangle {
     function userName() {
         if (typeof userModel === "undefined") return ""
         if (userModel.lastUser) return String(userModel.lastUser)
-        if (userHelper.currentItem && userHelper.currentItem.uLogin) return String(userHelper.currentItem.uLogin)
         return ""
     }
 
