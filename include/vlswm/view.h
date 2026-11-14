@@ -17,6 +17,7 @@ struct View {
     bool terminal = false;
     bool foot = false;
     bool dialog = false;
+    bool lock_screen = false;
     pid_t pid = 0;
     bool initial_configured = false;
     int base_x = 0;

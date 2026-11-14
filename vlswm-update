@@ -50,8 +50,15 @@ cmake --build "$NEW/build" -j"$(nproc)"
 echo "==> Installing"
 install -m 755 -s "$NEW/build/vlswm" /usr/bin/vlswm
 install -m 755 -s "$NEW/build/vlswmstat" /usr/bin/vlswmstat
+install -m 755 -s "$NEW/build/vlswm-lock" /usr/bin/vlswm-lock
 install -m 755 "$NEW/vlswm-update" /usr/bin/vlswm-update
 install -m 644 "$NEW/vlswm.desktop" /usr/share/wayland-sessions/vlswm.desktop
+install -Dm644 "$NEW/lock/Main.qml" /usr/share/vlswm/lock/Main.qml
+install -Dm644 "$NEW/lock/PasswordField.qml" /usr/share/vlswm/lock/PasswordField.qml
+install -Dm644 "$NEW/lock/theme.conf" /usr/share/vlswm/lock/theme.conf
+if [ ! -f /etc/pam.d/vlswm-lock ]; then
+    install -Dm644 "$NEW/config/pam.d/vlswm-lock" /etc/pam.d/vlswm-lock
+fi
 install -Dm755 "$NEW/scripts/vlswm-record" /usr/bin/vlswm-record
 install -Dm755 "$NEW/scripts/vlswm-screenshot" /usr/bin/vlswm-screenshot
 install -Dm755 "$NEW/scripts/vlswm-mic" /usr/bin/vlswm-mic

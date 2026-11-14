@@ -14,7 +14,7 @@ jobs:
           pacman -Syu --noconfirm --needed \
             git cmake gcc make pkgconf \
             wayland wayland-protocols wlroots0.20 libxkbcommon pixman libinput \
-            cairo pango wlr-protocols grim
+            cairo pango wlr-protocols grim qt6-base qt6-declarative pam
       - uses: actions/checkout@v4
       - name: Build
         run: |

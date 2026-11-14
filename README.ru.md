@@ -78,6 +78,7 @@
 - `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — выбор файлов в GTK-приложениях
 - `xdg-desktop-portal-termfilechooser` (AUR) — открывает `yazi` в диалоге выбора файлов; без него используется GTK-диалог
 - `qt5-declarative` — нужен Qt5-SDDM-greeter для моей темы
+- `qt6-declarative` — Qt6 Quick, нужен `vlswm-lock` и экрану блокировки
 - `tree-sitter-cli` — собирает парсеры для конфига Neovim (`nvim-treesitter`)
 - Шрифт `JetBrainsMono Nerd Font` (или любой другой, указанный в `[launcher] font`)
 - `zen-browser-bin` (AUR) — мой браузер; `install.sh` ставит его через `paru-bin` или `yay-bin`, спросив, какой helper использовать
@@ -129,6 +130,7 @@ sudo vlswm-update
 ```ini
 [keybinds]
 launcher = "SUPER+D"
+lock = "SUPER+L"
 close = "SUPER+Q"
 reload = "SUPER+R"
 exit = "SUPER+ESC"
@@ -245,6 +247,10 @@ vlswm — мой демон уведомлений: владеет `org.freedesk
 
 Имя может занимать только один демон: если запущены `mako`, `dunst` или другой демон — останови их.
 
+## Экран блокировки
+
+`SUPER+L` блокирует сессию. Экран блокировки использует QML моей SDDM-темы (`/usr/share/sddm/themes/vlswm`); если тема не установлена — встроенную копию в `/usr/share/vlswm/lock`. Пароль проверяется через PAM (`/etc/pam.d/vlswm-lock`), как в SDDM. `T` / `Ctrl+T` переключают палитру, `Ctrl+Shift+P/R/S` выключают, перезагружают или усыпляют. Пока экран заблокирован, кейбиндинги VLSWM отключены, все окна скрыты.
+
 ## Выбор файлов
 
 GTK-приложения (Zen, LocalSend, …) открывают диалог выбора файлов через `xdg-desktop-portal`: vlswm ставит `GTK_USE_PORTAL=1` и экспортирует окружение сессии, поэтому диалог работает отдельным процессом. FileChooser-портал направлен в `xdg-desktop-portal-termfilechooser`, который открывает `yazi` в окне `foot`. `Enter` подтверждает, `Esc` отменяет; выбранный путь возвращается приложению. Для сохранения показывается короткий запрос пути в терминале.
@@ -280,6 +286,7 @@ vlswmstat --version
 | Клавиши | Действие |
 |---|---|
 | `SUPER+D` | лаунчер |
+| `SUPER+L` | заблокировать сессию |
 | `SUPER+ENTER` | новый терминал |
 | `SUPER+Q` | закрыть сфокусированное окно |
 | `SUPER+←` / `SUPER+→` | переключить окно |
@@ -319,6 +326,7 @@ vlswmstat --version
 - `scripts/vlswm-config-merge` — дописывает новые опции конфига при обновлении.
 - `scripts/vlswm-env-install` — ставит environment.d, fish и portal-конфиги.
 - `scripts/vlswm-smoke-test` — headless-старт и проверка кадра.
+- `lock/` — `vlswm-lock` (Qt6 Quick) и QML экрана блокировки.
 - `vlswm-update` — установка последнего релиза.
 - `dots/` — мои личные конфиги Neovim, btop и cava и вотчер темы.
 

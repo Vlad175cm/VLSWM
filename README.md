@@ -78,6 +78,7 @@ I use **zen-browser** and recommend it for vlswm. It behaves predictably in a fu
 - `xdg-desktop-portal`, `xdg-desktop-portal-gtk` — file pickers in GTK apps
 - `xdg-desktop-portal-termfilechooser` (AUR) — opens `yazi` in file pickers; without it the GTK dialog is used
 - `qt5-declarative` — required by the Qt5 SDDM greeter for my theme
+- `qt6-declarative` — Qt6 Quick, required by `vlswm-lock` and the lock screen
 - `tree-sitter-cli` — builds parsers for the Neovim config (`nvim-treesitter`)
 - Font `JetBrainsMono Nerd Font` (or any other set in `[launcher] font`)
 - `zen-browser-bin` (AUR) — my browser; `install.sh` installs it through `paru-bin` or `yay-bin` after asking which helper to use
@@ -129,6 +130,7 @@ Combos are written as `MODIFIERS+KEY`. Modifiers: `SUPER`, `SHIFT`, `CTRL`, `ALT
 ```ini
 [keybinds]
 launcher = "SUPER+D"
+lock = "SUPER+L"
 close = "SUPER+Q"
 reload = "SUPER+R"
 exit = "SUPER+ESC"
@@ -245,6 +247,10 @@ vlswm is my notification daemon: it owns `org.freedesktop.Notifications`, so not
 
 Only one notification daemon can own the name: stop `mako`, `dunst` or another daemon if one is running.
 
+## Lock screen
+
+`SUPER+L` locks the session. The lock screen reuses the QML from my SDDM theme (`/usr/share/sddm/themes/vlswm`); if the theme is not installed, it uses the embedded copy in `/usr/share/vlswm/lock`. The password is checked through PAM (`/etc/pam.d/vlswm-lock`), exactly like SDDM. `T` / `Ctrl+T` toggle the palette, `Ctrl+Shift+P/R/S` power off, reboot or suspend. While the screen is locked, VLSWM keybindings are disabled and all windows are hidden.
+
 ## File pickers
 
 GTK apps (Zen, LocalSend, …) open their file dialogs through `xdg-desktop-portal`: vlswm sets `GTK_USE_PORTAL=1` and exports the session environment, so the dialog runs outside the app. The FileChooser portal is routed to `xdg-desktop-portal-termfilechooser`, which opens `yazi` in a `foot` window. `Enter` confirms, `Esc` cancels; the selected path is written back to the app. Saving uses a short path prompt in the terminal.
@@ -280,6 +286,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 | Keys | Action |
 |---|---|
 | `SUPER+D` | launcher |
+| `SUPER+L` | lock the session |
 | `SUPER+ENTER` | new terminal |
 | `SUPER+Q` | close the focused window |
 | `SUPER+←` / `SUPER+→` | cycle windows |
@@ -319,6 +326,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `scripts/vlswm-config-merge` — appends new config options during an update.
 - `scripts/vlswm-env-install` — installs environment.d, fish and portal configs.
 - `scripts/vlswm-smoke-test` — headless startup and frame test.
+- `lock/` — `vlswm-lock` (Qt6 Quick) and the lock screen QML.
 - `vlswm-update` — installs the latest release.
 - `dots/` — my personal Neovim, btop and cava configs and the theme watcher.
 

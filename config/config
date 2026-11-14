@@ -11,6 +11,7 @@
 
 [keybinds]
 launcher = "SUPER+D"
+lock = "SUPER+L"
 close = "SUPER+Q"
 reload = "SUPER+R"
 exit = "SUPER+ESC"

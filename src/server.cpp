@@ -308,6 +308,56 @@ void Server::start_satellite() {
     satellite_pid = spawn_argv({settings.satellite, settings.satellite_display});
 }
 
+static int on_lock_timer(void *data) {
+    Server *server = (Server *)data;
+    if (server->locked && !server->lock_view) {
+        if (server->lock_pid > 0) kill(server->lock_pid, SIGTERM);
+        server->unlock_session();
+    }
+    return 0;
+}
+
+void Server::lock_session() {
+    if (locked) return;
+    pid_t pid = spawn_argv({"vlswm-lock"});
+    if (pid <= 0) {
+        wlr_log(WLR_ERROR, "failed to start vlswm-lock");
+        return;
+    }
+    locked = true;
+    lock_pid = pid;
+    lock_view = nullptr;
+    if (!lock_timer) {
+        lock_timer = wl_event_loop_add_timer(wl_display_get_event_loop(wl_display),
+                                             on_lock_timer, this);
+    }
+    wl_event_source_timer_update(lock_timer, 10000);
+    wlr_seat_keyboard_clear_focus(seat);
+    wlr_seat_pointer_clear_focus(seat);
+    update_visibility();
+    request_frame();
+}
+
+void Server::unlock_session() {
+    if (!locked) return;
+    locked = false;
+    lock_pid = 0;
+    lock_view = nullptr;
+    if (lock_timer) wl_event_source_timer_update(lock_timer, 0);
+    update_visibility();
+    focus_top();
+    request_frame();
+}
+
+void Server::adopt_lock(View *view) {
+    if (!view || !view->lock_screen || lock_view) return;
+    lock_view = view;
+    if (lock_timer) wl_event_source_timer_update(lock_timer, 0);
+    update_visibility();
+    focus_view(view, view->wlr_surface());
+    request_frame();
+}
+
 void Server::update_portal_env() {
     if (std::getenv("VLSWM_NO_PORTAL_ENV")) return;
     const char *cmd = "/usr/bin/dbus-update-activation-environment";
@@ -331,6 +381,16 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
     if (server->shutting_down) return;
     struct wlr_keyboard *keyboard = wlr_keyboard_from_input_device(kb->device);
     struct wlr_keyboard_key_event *event = (struct wlr_keyboard_key_event *)data;
+
+    if (server->locked) {
+        if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED) {
+            server->stop_repeat(event->keycode);
+        }
+        wlr_seat_set_keyboard(server->seat, keyboard);
+        wlr_seat_keyboard_notify_key(server->seat, event->time_msec, event->keycode,
+                                     event->state);
+        return;
+    }
 
     uint32_t keycode = event->keycode + 8;
     uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard);
@@ -853,6 +913,7 @@ static void handle_drag_icon_destroy(wl_listener *listener, void *data) {
 
 static void handle_request_activate(wl_listener *listener, void *data) {
     Server *server = wl_container_of(listener, server, request_activate);
+    if (server->locked) return;
     struct wlr_xdg_activation_v1_request_activate_event *event =
         (struct wlr_xdg_activation_v1_request_activate_event *)data;
     if (!event->token || !event->surface) return;
@@ -924,6 +985,7 @@ static void handle_cursor_button(wl_listener *listener, void *data) {
         View *view = desktop_view_at(server, server->cursor->x, server->cursor->y,
                                      &surface, &sx, &sy);
         View *top = server->top_view();
+        if (server->locked && view != server->lock_view) view = nullptr;
         if (view && surface && (!top || !top->dialog || view == top)) {
             server->focus_view(view, view->wlr_surface());
         }
@@ -1175,6 +1237,10 @@ void Server::finish() {
             wl_event_source_remove(respawn_timer);
             respawn_timer = nullptr;
         }
+        if (lock_timer) {
+            wl_event_source_remove(lock_timer);
+            lock_timer = nullptr;
+        }
 
         for (pid_t pid : children) {
             if (pid > 0) kill(-pid, SIGTERM);
@@ -1285,6 +1351,7 @@ void Server::load_bindings() {
         else if (action == "theme") type = BindAction::Theme;
         else if (action == "focus_next") type = BindAction::FocusNext;
         else if (action == "focus_prev") type = BindAction::FocusPrev;
+        else if (action == "lock") type = BindAction::Lock;
         else if (config->values.count("commands." + action)) {
             cmd = config->values.at("commands." + action);
         } else {
@@ -1334,6 +1401,7 @@ void Server::run_action(int idx) {
         case BindAction::FileManager: spawn_file_manager(); break;
         case BindAction::NewTerminal: spawn_new_terminal(); break;
         case BindAction::RestartTerminal: restart_terminal(); break;
+        case BindAction::Lock: lock_session(); break;
         case BindAction::Spawn:
             start_satellite();
             if (is_osd_action(b.name)) {
@@ -1364,6 +1432,7 @@ View *Server::focused_view() {
 }
 
 void Server::focus_view(View *view, struct wlr_surface *surface) {
+    if (locked && view != lock_view) return;
     if (!view || !view->wlr_surface() || !surface) {
         wlr_seat_keyboard_clear_focus(seat);
         return;
@@ -1388,12 +1457,30 @@ void Server::focus_view(View *view, struct wlr_surface *surface) {
 }
 
 void Server::focus_top() {
+    if (locked) {
+        if (lock_view && lock_view->wlr_surface()) {
+            focus_view(lock_view, lock_view->wlr_surface());
+        } else {
+            wlr_seat_keyboard_clear_focus(seat);
+        }
+        return;
+    }
     View *top = top_view();
     if (top && top->wlr_surface()) focus_view(top, top->wlr_surface());
     else wlr_seat_keyboard_clear_focus(seat);
 }
 
 void Server::update_visibility() {
+    if (locked) {
+        if (scene_overlay) wlr_scene_node_set_enabled(&scene_overlay->node, false);
+        if (scene_layers) wlr_scene_node_set_enabled(&scene_layers->node, false);
+        for (auto *v : stack) {
+            wlr_scene_node_set_enabled(&v->scene_tree->node, v == lock_view);
+        }
+        return;
+    }
+    if (scene_overlay) wlr_scene_node_set_enabled(&scene_overlay->node, true);
+    if (scene_layers) wlr_scene_node_set_enabled(&scene_layers->node, true);
     bool active_shown = false;
     bool show_parent = false;
     bool show_below = false;

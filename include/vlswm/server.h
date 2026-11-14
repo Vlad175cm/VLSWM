@@ -58,6 +58,7 @@ enum class BindAction {
     FileManager,
     NewTerminal,
     RestartTerminal,
+    Lock,
     Spawn,
 };
 
@@ -130,6 +131,11 @@ struct Server {
     bool rec_active = false;
     struct wl_event_source *rec_timer = nullptr;
 
+    bool locked = false;
+    pid_t lock_pid = 0;
+    View *lock_view = nullptr;
+    struct wl_event_source *lock_timer = nullptr;
+
     pid_t base_pid = 0;
     pid_t satellite_pid = 0;
     struct wl_event_source *respawn_timer = nullptr;
@@ -179,6 +185,9 @@ struct Server {
     void spawn_new_terminal();
     void terminal_gone();
     void start_satellite();
+    void lock_session();
+    void unlock_session();
+    void adopt_lock(View *view);
     void update_portal_env();
     void foot_setup_theme();
     void terminal_setup_theme();

@@ -22,6 +22,7 @@ pkg_check_modules(PANGOCAIRO REQUIRED pangocairo)
 pkg_check_modules(LIBINPUT REQUIRED libinput)
 pkg_check_modules(SYSTEMD REQUIRED libsystemd)
 pkg_check_modules(WLR_PROTOCOLS wlr-protocols)
+find_package(Qt6 REQUIRED COMPONENTS Quick Gui)
 
 set(_wlr_proto_dir "${WLR_PROTOCOLS_DATADIR}")
 if(NOT _wlr_proto_dir AND WLR_PROTOCOLS_FOUND)
@@ -127,6 +128,12 @@ add_executable(vlswm
 
 add_dependencies(vlswm vlswm-protocols)
 
+add_executable(vlswm-lock lock/vlswm-lock.cpp)
+set_target_properties(vlswm-lock PROPERTIES AUTOMOC ON)
+target_compile_options(vlswm-lock PRIVATE -Wall -Wextra
+    -ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
+target_link_libraries(vlswm-lock PRIVATE Qt6::Quick Qt6::Gui pam)
+
 target_include_directories(vlswm PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${VLSWM_COMPAT_DIR}
@@ -168,7 +175,7 @@ endforeach()
 include(CheckIPOSupported)
 check_ipo_supported(RESULT _ipo_supported OUTPUT _ipo_error)
 if(_ipo_supported)
-    set_target_properties(vlswm vlswmstat PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_target_properties(vlswm vlswmstat vlswm-lock PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 else()
     message(STATUS "LTO is not supported: ${_ipo_error}")
 endif()

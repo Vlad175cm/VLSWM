@@ -42,6 +42,10 @@ struct wlr_surface *View::wlr_surface() {
 
 void View::update_dialog() {
     if (!xdg_surface || !xdg_surface->toplevel) return;
+    if (lock_screen) {
+        dialog = false;
+        return;
+    }
     struct wlr_xdg_toplevel *toplevel = xdg_surface->toplevel;
     bool fixed = toplevel->current.min_width > 0 &&
                  toplevel->current.min_height > 0 &&
@@ -143,18 +147,27 @@ void View::xdg_map(wl_listener *listener, void *data) {
 
     view->mapped = true;
     view->closing = false;
+    view->lock_screen = server->locked && server->lock_pid == view->pid;
     view->update_dialog();
     view->configure_size();
     view->center();
     server->stack.push_back(view);
-    view->set_opacity(0.0f);
-    view->opacity = 0.0f;
-    view->slide_y = 14.0f;
-    wlr_scene_node_set_position(&view->scene_tree->node, view->base_x,
-                                view->base_y + 14);
-    uint64_t now = anim_now_ns();
-    view->fade.begin(now, server->settings.duration_ns, server->settings.easing, 0.0f, 1.0f);
-    view->slide.begin(now, server->settings.duration_ns, server->settings.easing, 14.0f, 0.0f);
+    if (view->lock_screen) server->adopt_lock(view);
+    if (view->lock_screen) {
+        view->set_opacity(1.0f);
+        view->opacity = 1.0f;
+        view->slide_y = 0.0f;
+        wlr_scene_node_set_position(&view->scene_tree->node, view->base_x, view->base_y);
+    } else {
+        view->set_opacity(0.0f);
+        view->opacity = 0.0f;
+        view->slide_y = 14.0f;
+        wlr_scene_node_set_position(&view->scene_tree->node, view->base_x,
+                                    view->base_y + 14);
+        uint64_t now = anim_now_ns();
+        view->fade.begin(now, server->settings.duration_ns, server->settings.easing, 0.0f, 1.0f);
+        view->slide.begin(now, server->settings.duration_ns, server->settings.easing, 14.0f, 0.0f);
+    }
     server->focus_view(view, view->wlr_surface());
     server->update_visibility();
     server->request_frame();
@@ -171,9 +184,13 @@ void View::xdg_unmap(wl_listener *listener, void *data) {
             break;
         }
     }
-    server->focus_top();
-    server->update_visibility();
-    server->request_frame();
+    if (view->lock_screen) {
+        server->unlock_session();
+    } else {
+        server->focus_top();
+        server->update_visibility();
+        server->request_frame();
+    }
 }
 
 void View::xdg_destroy(wl_listener *listener, void *data) {
@@ -188,6 +205,7 @@ void View::xdg_destroy(wl_listener *listener, void *data) {
         }
     }
     bool was_terminal = view->terminal;
+    bool was_lock = view->lock_screen;
 
     wl_list_remove(&view->map.link);
     wl_list_remove(&view->unmap.link);
@@ -197,9 +215,13 @@ void View::xdg_destroy(wl_listener *listener, void *data) {
     view->xdg_surface = nullptr;
     delete view;
 
-    server->focus_top();
-    server->update_visibility();
-    server->request_frame();
+    if (was_lock) {
+        server->unlock_session();
+    } else {
+        server->focus_top();
+        server->update_visibility();
+        server->request_frame();
+    }
     if (was_terminal) server->terminal_gone();
 }
 

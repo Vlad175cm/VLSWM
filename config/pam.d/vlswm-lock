@@ -1,0 +1,7 @@
+# PAM service for the VLSWM lock screen.
+# The same system-auth stack as a normal login; pam_unix uses unix_chkpwd
+# for the current user, so vlswm-lock does not need to run as root.
+
+auth include system-auth
+account include system-auth
+session include system-auth
