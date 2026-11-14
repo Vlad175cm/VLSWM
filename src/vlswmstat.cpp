@@ -339,33 +339,71 @@ static uint64_t net_bytes(const std::string &iface, const char *file) {
     return v;
 }
 
+static bool read_temp_c(const std::string &path, double *out) {
+    std::ifstream in(path);
+    double milli = 0;
+    if (!(in >> milli)) return false;
+    double c = milli / 1000.0;
+    if (c < -40.0 || c > 150.0) return false;
+    *out = c;
+    return true;
+}
+
+static std::string format_temp(double c) {
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%.0f °C", c);
+    return buf;
+}
+
 static std::string temperature() {
+    struct Hwmon {
+        std::string base;
+        std::string name;
+    };
+    std::vector<Hwmon> hwmons;
     DIR *dir = opendir("/sys/class/hwmon");
     if (!dir) return "";
-    double best = -1;
-    std::string label;
     struct dirent *de;
     while ((de = readdir(dir))) {
         if (de->d_name[0] == '.') continue;
         std::string base = "/sys/class/hwmon/" + std::string(de->d_name);
-        std::string name = read_line(base + "/name");
-        for (int i = 1; i <= 8; i++) {
-            std::string f = base + "/temp" + std::to_string(i) + "_input";
-            std::ifstream in(f);
-            double milli = 0;
-            if (!(in >> milli)) continue;
-            double c = milli / 1000.0;
-            if (c > best) {
+        hwmons.push_back({base, read_line(base + "/name")});
+    }
+    closedir(dir);
+
+    // The CPU package first: coretemp temp1 is "Package id 0" on Intel,
+    // k10temp temp1 is "Tctl" on AMD. Taking the maximum over every hwmon
+    // picks stale board sensors (applesmc TC1C) and looks frozen.
+    static const char *CPU_DRIVERS[] = {
+        "coretemp", "k10temp", "zenpower", "cpu_thermal", "soc_thermal",
+    };
+    for (const char *driver : CPU_DRIVERS) {
+        for (const auto &hw : hwmons) {
+            if (hw.name != driver) continue;
+            double c = 0;
+            if (read_temp_c(hw.base + "/temp1_input", &c)) return format_temp(c);
+        }
+    }
+
+    for (const auto &hw : hwmons) {
+        if (hw.name != "acpitz") continue;
+        double c = 0;
+        if (read_temp_c(hw.base + "/temp1_input", &c)) return format_temp(c);
+    }
+
+    double best = -1000;
+    for (const auto &hw : hwmons) {
+        if (hw.name.rfind("BAT", 0) == 0 || hw.name.rfind("ADP", 0) == 0) continue;
+        for (int i = 1; i <= 64; i++) {
+            double c = 0;
+            if (read_temp_c(hw.base + "/temp" + std::to_string(i) + "_input", &c) &&
+                c > best) {
                 best = c;
-                label = name;
             }
         }
     }
-    closedir(dir);
-    if (best < 0) return "";
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), "%.0f °C", best);
-    return buf;
+    if (best < -40.0) return "";
+    return format_temp(best);
 }
 
 static std::string fan_rpm() {
