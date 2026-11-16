@@ -33,7 +33,7 @@ current="$(sed -n 's/^project(vlswm VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.
 [ -n "$current" ] || { echo "Cannot read the version from CMakeLists.txt" >&2; exit 1; }
 IFS=. read -r major minor patch <<<"$current"
 case "$BUMP" in
-minor) next="$major.$((minor + 1))" ;;
+minor) next="$major.$((minor + 1)).0" ;;
 patch)
     if [ -n "$patch" ]; then
         next="$major.$minor.$((patch + 1))"
