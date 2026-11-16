@@ -16,6 +16,7 @@ struct View;
 struct Launcher;
 struct Osd;
 struct Clipboard;
+struct Switcher;
 struct Rec;
 struct Notifications;
 
@@ -59,6 +60,7 @@ enum class BindAction {
     NewTerminal,
     RestartTerminal,
     Lock,
+    Switcher,
     Spawn,
 };
 
@@ -126,6 +128,7 @@ struct Server {
     Launcher *launcher = nullptr;
     Osd *osd = nullptr;
     Clipboard *clipboard = nullptr;
+    Switcher *switcher = nullptr;
     Rec *rec = nullptr;
     Notifications *notifications = nullptr;
     bool rec_active = false;

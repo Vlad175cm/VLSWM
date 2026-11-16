@@ -252,6 +252,10 @@ Only one notification daemon can own the name: stop `mako`, `dunst` or another d
 
 `SUPER+L` locks the session. The lock screen reuses the QML from my SDDM theme (`/usr/share/sddm/themes/vlswm`); if the theme is not installed, it uses the embedded copy in `/usr/share/vlswm/lock`. The password is checked through PAM (`/etc/pam.d/vlswm-lock`), exactly like SDDM; if that file is missing, it falls back to `system-auth`. `T` / `Ctrl+T` toggle the palette, `Ctrl+Shift+P/R/S` power off, reboot or suspend. While the screen is locked, VLSWM keybindings are disabled and all windows are hidden.
 
+## Window switcher
+
+`SUPER+TAB` opens my window switcher: a vertical panel in the center with the titles of the open windows, the current one highlighted, the topmost window first. `↑` / `↓` move the selection, `Enter` raises and focuses that window, `Esc` closes the panel without changing anything. Dialogs are not listed, so the switcher only shows real windows. While the panel is open, my other keybindings are disabled.
+
 ## File pickers
 
 GTK apps (Zen, LocalSend, …) open their file dialogs through `xdg-desktop-portal`: vlswm sets `GTK_USE_PORTAL=1` and exports the session environment, so the dialog runs outside the app. The FileChooser portal is routed to `xdg-desktop-portal-termfilechooser`, which opens `yazi` in a `foot` window. `Enter` confirms, `Esc` cancels; the selected path is written back to the app. Saving uses a short path prompt in the terminal.
@@ -287,6 +291,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 | Keys | Action |
 |---|---|
 | `SUPER+D` | launcher |
+| `SUPER+TAB` | window switcher |
 | `SUPER+L` | lock the session |
 | `SUPER+ENTER` | new terminal |
 | `SUPER+Q` | close the focused window |
@@ -315,6 +320,7 @@ Keys: `q` / `Esc` — quit, `r` — refresh, window resizes are picked up automa
 - `src/launcher.cpp` — launcher (cairo + pango).
 - `src/osd.cpp` — volume and brightness overlay.
 - `src/clipboard.cpp` — clipboard history picker.
+- `src/switcher.cpp` — window switcher.
 - `src/notify.cpp` — notification daemon, cards and panel.
 - `src/rec.cpp` — recording start/stop indicator.
 - `src/overlay.cpp` — shared buffer for the launcher, OSD and picker.

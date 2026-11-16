@@ -378,6 +378,7 @@ main() {
   echo ""
   echo -e "${YELLOW}Key bindings (defaults):${NC}"
   echo -e "  SUPER+D         - Launcher (type a command, Enter runs it in fish)"
+  echo -e "  SUPER+TAB       - Window switcher"
   echo -e "  SUPER+L         - Lock the session"
   echo -e "  SUPER+Q         - Close the focused window (the terminal cannot be closed)"
   echo -e "  SUPER+LEFT/RIGHT- Switch windows"

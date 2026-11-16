@@ -1,6 +1,7 @@
 #include "vlswm/wlroots.h"
 #include "vlswm/view.h"
 #include "vlswm/server.h"
+#include "vlswm/switcher.h"
 
 
 #include <cstdlib>
@@ -169,6 +170,7 @@ void View::xdg_map(wl_listener *listener, void *data) {
         view->slide.begin(now, server->settings.duration_ns, server->settings.easing, 14.0f, 0.0f);
     }
     server->focus_view(view, view->wlr_surface());
+    if (server->switcher && server->switcher->open) server->switcher->reload();
     server->update_visibility();
     server->request_frame();
 }
@@ -187,6 +189,7 @@ void View::xdg_unmap(wl_listener *listener, void *data) {
     if (view->lock_screen) {
         server->unlock_session();
     } else {
+        if (server->switcher && server->switcher->open) server->switcher->reload();
         server->focus_top();
         server->update_visibility();
         server->request_frame();
@@ -204,6 +207,7 @@ void View::xdg_destroy(wl_listener *listener, void *data) {
             break;
         }
     }
+    if (server->switcher && server->switcher->open) server->switcher->reload();
     bool was_terminal = view->terminal;
     bool was_lock = view->lock_screen;
 

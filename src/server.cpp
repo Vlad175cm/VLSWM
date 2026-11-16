@@ -4,6 +4,7 @@
 #include "vlswm/launcher.h"
 #include "vlswm/osd.h"
 #include "vlswm/clipboard.h"
+#include "vlswm/switcher.h"
 #include "vlswm/rec.h"
 #include "vlswm/notify.h"
 #include "vlswm/theme.h"
@@ -351,6 +352,7 @@ static int on_lock_timer(void *data) {
 
 void Server::lock_session() {
     if (locked) return;
+    if (switcher) switcher->close();
     std::string lock_bin = find_executable("vlswm-lock");
     if (lock_bin.empty()) {
         wlr_log(WLR_ERROR, "vlswm-lock is not installed");
@@ -464,6 +466,12 @@ static void keyboard_handle_key(wl_listener *listener, void *data) {
                     server->start_repeat(r);
                 }
             }
+        }
+
+        if (!kb->swallowed && server->switcher->open) {
+            server->switcher->key(active_sym);
+            kb->swallowed = true;
+            kb->swallowed_keycode = event->keycode;
         }
 
         if (!kb->swallowed && server->launcher->open &&
@@ -1140,6 +1148,8 @@ bool Server::init(std::unique_ptr<IniConfig> cfg) {
     osd->init(this);
     clipboard = new Clipboard;
     clipboard->init(this);
+    switcher = new Switcher;
+    switcher->init(this);
     rec = new Rec;
     rec->init(this);
     notifications = new Notifications;
@@ -1411,6 +1421,7 @@ void Server::load_bindings() {
         else if (action == "focus_next") type = BindAction::FocusNext;
         else if (action == "focus_prev") type = BindAction::FocusPrev;
         else if (action == "lock") type = BindAction::Lock;
+        else if (action == "switcher") type = BindAction::Switcher;
         else if (config->values.count("commands." + action)) {
             cmd = config->values.at("commands." + action);
         } else {
@@ -1447,6 +1458,9 @@ int Server::find_binding(xkb_keysym_t sym, uint32_t mods) const {
 void Server::run_action(int idx) {
     if (idx < 0 || idx >= (int)bindings.size()) return;
     const Binding &b = bindings[idx];
+    // The switcher is modal: while it is open only its own key toggles it,
+    // everything else would be a blind action behind a visible panel.
+    if (switcher && switcher->open && b.action != BindAction::Switcher) return;
     switch (b.action) {
         case BindAction::Close: close_top(); break;
         case BindAction::Exit: wl_display_terminate(wl_display); break;
@@ -1461,6 +1475,7 @@ void Server::run_action(int idx) {
         case BindAction::NewTerminal: spawn_new_terminal(); break;
         case BindAction::RestartTerminal: restart_terminal(); break;
         case BindAction::Lock: lock_session(); break;
+        case BindAction::Switcher: switcher->toggle(); break;
         case BindAction::Spawn:
             start_satellite();
             if (is_osd_action(b.name)) {
@@ -1733,6 +1748,7 @@ void Server::apply_output_scale() {
     }
     if (launcher) launcher->relayout();
     if (osd) osd->render();
+    if (switcher && switcher->open) switcher->render();
     configure_all();
 }
 
@@ -1747,6 +1763,7 @@ void Server::reload_config() {
     apply_output_scale();
     set_theme(theme_white);
     launcher->reload();
+    if (switcher && switcher->open) switcher->render();
     configure_all();
     if (notifications) notifications->push("vlswm", "Config reloaded", config->path(), 3000, 0);
 }

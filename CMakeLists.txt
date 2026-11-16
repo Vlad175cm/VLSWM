@@ -118,6 +118,7 @@ add_executable(vlswm
     src/launcher.cpp
     src/osd.cpp
     src/clipboard.cpp
+    src/switcher.cpp
     src/rec.cpp
     src/notify.cpp
     src/overlay.cpp
